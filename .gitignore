@@ -1,0 +1,25 @@
+# Environment / secrets
+.env
+*.keystore
+*.jks
+google-services.json
+GoogleService-Info.plist
+firebase-service-account*.json
+
+# IDE
+.idea/
+*.iml
+.vscode/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Backend (Maven)
+backend/target/
+
+# Mobile (Flutter)
+mobile/.dart_tool/
+mobile/build/
+mobile/.flutter-plugins
+mobile/.flutter-plugins-dependencies
