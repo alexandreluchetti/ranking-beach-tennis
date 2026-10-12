@@ -58,6 +58,14 @@ Only matches are stored. Rankings, points and statistics are computed at query t
 valid matches within the season period. Corrections, voids, void reversals and season date
 changes are reflected automatically and points can never be applied twice.
 
+## Technical defaults (stage 1, easy to change)
+
+- Display name: 2–40 characters, whitespace normalized. Initial value: name from the login
+  provider → e-mail local part → "Jogador". Not unique (uniqueness is still a proposal).
+- Administrator identified by Firebase UID (`ADMIN_AUTH_SUBJECT`); roles never come from token
+  claims.
+- E-mail verification is not required.
+
 ## Proposed (awaiting approval)
 
 - Seasons must not overlap (at most one active season).

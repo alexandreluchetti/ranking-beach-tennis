@@ -1,0 +1,26 @@
+spring:
+  application:
+    name: ranking-backend
+  datasource:
+    url: ${DATABASE_URL:jdbc:postgresql://localhost:5432/ranking}
+    username: ${DATABASE_USERNAME:ranking}
+    password: ${DATABASE_PASSWORD:ranking}
+  jpa:
+    open-in-view: false
+    hibernate:
+      ddl-auto: validate
+    properties:
+      hibernate.jdbc.time_zone: UTC
+  flyway:
+    enabled: true
+
+app:
+  security:
+    firebase-project-id: ${FIREBASE_PROJECT_ID:}
+    admin-subject: ${ADMIN_AUTH_SUBJECT:}
+
+springdoc:
+  api-docs:
+    enabled: ${API_DOCS_ENABLED:true}
+  swagger-ui:
+    enabled: ${API_DOCS_ENABLED:true}
