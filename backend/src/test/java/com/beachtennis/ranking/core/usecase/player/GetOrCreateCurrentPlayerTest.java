@@ -1,4 +1,4 @@
-package com.beachtennis.ranking.core.usecase;
+package com.beachtennis.ranking.core.usecase.player;
 
 import com.beachtennis.ranking.core.domain.AuthIdentity;
 import com.beachtennis.ranking.core.domain.AuthenticatedUser;

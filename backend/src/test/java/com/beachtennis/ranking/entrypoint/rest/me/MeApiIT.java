@@ -1,50 +1,17 @@
 package com.beachtennis.ranking.entrypoint.rest.me;
 
-import com.beachtennis.ranking.configuration.security.AdminAwareAuthoritiesConverter;
-import org.junit.jupiter.api.BeforeEach;
+import com.beachtennis.ranking.IntegrationTest;
+import com.jayway.jsonpath.JsonPath;
 import org.junit.jupiter.api.Test;
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.boot.test.context.SpringBootTest;
-import org.springframework.boot.testcontainers.service.connection.ServiceConnection;
-import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
 import org.springframework.http.MediaType;
-import org.springframework.jdbc.core.JdbcTemplate;
-import org.springframework.test.web.servlet.MockMvc;
-import org.springframework.test.web.servlet.request.RequestPostProcessor;
-import org.testcontainers.junit.jupiter.Container;
-import org.testcontainers.junit.jupiter.Testcontainers;
-import org.testcontainers.postgresql.PostgreSQLContainer;
 
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.jwt;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.patch;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
-@SpringBootTest(properties = {
-        "app.security.firebase-project-id=test-project",
-        "app.security.admin-subject=" + MeApiIT.ADMIN_UID
-})
-@AutoConfigureMockMvc
-@Testcontainers
-class MeApiIT {
-
-    static final String ADMIN_UID = "admin-uid";
-
-    @Container
-    @ServiceConnection
-    static final PostgreSQLContainer POSTGRES = new PostgreSQLContainer("postgres:17-alpine");
-
-    @Autowired
-    private MockMvc mockMvc;
-    @Autowired
-    private JdbcTemplate jdbcTemplate;
-
-    @BeforeEach
-    void cleanDatabase() {
-        jdbcTemplate.update("delete from app_user");
-    }
+class MeApiIT extends IntegrationTest {
 
     @Test
     void rejectsRequestWithoutToken() throws Exception {
@@ -66,14 +33,14 @@ class MeApiIT {
 
     @Test
     void flagsOnlyConfiguredSubjectAsAdmin() throws Exception {
-        mockMvc.perform(get("/api/me").with(token(ADMIN_UID, "Admin", null)))
+        mockMvc.perform(get("/api/me").with(adminToken()))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.admin").value(true));
     }
 
     @Test
     void renamesKeepingTheSameId() throws Exception {
-        String id = com.jayway.jsonpath.JsonPath.read(
+        String id = JsonPath.read(
                 mockMvc.perform(get("/api/me").with(token("uid-1", "Ana", null)))
                         .andReturn().getResponse().getContentAsString(), "$.id");
 
@@ -97,20 +64,9 @@ class MeApiIT {
 
     @Test
     void adminAreaIsForbiddenForRegularUsers() throws Exception {
-        mockMvc.perform(get("/api/admin/anything").with(token("uid-1", "Ana", null)))
+        mockMvc.perform(get("/api/admin/anything").with(userToken()))
                 .andExpect(status().isForbidden());
-        mockMvc.perform(get("/api/admin/anything").with(token(ADMIN_UID, "Admin", null)))
+        mockMvc.perform(get("/api/admin/anything").with(adminToken()))
                 .andExpect(status().isNotFound());
-    }
-
-    private static RequestPostProcessor token(String subject, String name, String email) {
-        return jwt()
-                .jwt(builder -> {
-                    builder.subject(subject).claim("name", name);
-                    if (email != null) {
-                        builder.claim("email", email);
-                    }
-                })
-                .authorities(new AdminAwareAuthoritiesConverter(ADMIN_UID));
     }
 }

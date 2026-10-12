@@ -1,8 +1,8 @@
 package com.beachtennis.ranking.entrypoint.rest.me;
 
 import com.beachtennis.ranking.core.domain.AuthenticatedUser;
-import com.beachtennis.ranking.core.usecase.GetOrCreateCurrentPlayer;
-import com.beachtennis.ranking.core.usecase.UpdateDisplayName;
+import com.beachtennis.ranking.core.usecase.player.GetOrCreateCurrentPlayer;
+import com.beachtennis.ranking.core.usecase.player.UpdateDisplayName;
 import com.beachtennis.ranking.entrypoint.security.CurrentUserProvider;
 import io.swagger.v3.oas.annotations.Operation;
 import jakarta.validation.Valid;

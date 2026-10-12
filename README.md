@@ -34,14 +34,14 @@ Runs unit tests and integration tests (`*IT`, real PostgreSQL via Testcontainers
 be running).
 
 ```bash
-FIREBASE_PROJECT_ID=<project-id> ./mvnw spring-boot:run
+./mvnw spring-boot:run
 ```
 
 Swagger UI: http://localhost:8080/swagger-ui.html
 
 | Variable | Description | Default |
 |---|---|---|
-| `FIREBASE_PROJECT_ID` | Firebase **project ID** (text, not the project number). Required. | — |
+| `FIREBASE_PROJECT_ID` | Firebase **project ID** (text, not the project number) | `ranking-beach-tennis` |
 | `ADMIN_AUTH_SUBJECT` | Firebase UID of the single administrator | empty (no admin) |
 | `DATABASE_URL` / `DATABASE_USERNAME` / `DATABASE_PASSWORD` | PostgreSQL connection | local docker-compose |
 | `API_DOCS_ENABLED` | Exposes Swagger / OpenAPI (disable in production) | `true` |

@@ -16,7 +16,7 @@ spring:
 
 app:
   security:
-    firebase-project-id: ${FIREBASE_PROJECT_ID:}
+    firebase-project-id: ${FIREBASE_PROJECT_ID:ranking-beach-tennis}
     admin-subject: ${ADMIN_AUTH_SUBJECT:}
 
 springdoc:

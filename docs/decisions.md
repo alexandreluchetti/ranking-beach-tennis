@@ -53,6 +53,13 @@ Computed from the recorded final score, tie-break counted as one game (7–6 →
 - A closed season **cannot be reopened**.
 - While a season is active, the admin may change its end date (extend or close early).
 
+### D-008 — Seasons never overlap
+At most one season covers any given day. Enforced by the database (exclusion constraint) and
+by the use cases.
+
+### D-009 — Firebase project
+Firebase project ID: `ranking-beach-tennis`.
+
 ### D-007 — Points are derived, never accumulated
 Only matches are stored. Rankings, points and statistics are computed at query time from
 valid matches within the season period. Corrections, voids, void reversals and season date
@@ -66,9 +73,19 @@ changes are reflected automatically and points can never be applied twice.
   claims.
 - E-mail verification is not required.
 
+## Technical defaults (stage 2, awaiting confirmation)
+
+- Season name: 2–60 characters.
+- A season's end date can never be set before today (creation or change), so already-played
+  days are never silently removed from a season. Closing early means "ends today".
+- A season may be created with a start date in the past (e.g. created a few days after it
+  started); matches already played in that period will count.
+- Active season: name and end date may change; start date is locked.
+  Planned season: name and both dates may change. Closed season: no changes.
+- Seasons cannot be deleted.
+
 ## Proposed (awaiting approval)
 
-- Seasons must not overlap (at most one active season).
 - Display names unique, case-insensitive.
 - Matches dated in the future are rejected.
 - Tie-break order for the ranking (must be revisited now that games count as points).
