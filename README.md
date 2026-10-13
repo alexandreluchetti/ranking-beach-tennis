@@ -1,18 +1,24 @@
-# Ranking Beach Tennis
+# ranking-beach-tennis
 
-Individual ranking app for a group of friends who play beach tennis.
+Backend of the individual ranking app for a group of friends who play beach tennis: Spring Boot
+API (Java 25, PostgreSQL, Flyway). The Flutter app lives in its own, independent repository.
 
-## Repository layout
+## Structure
 
-| Path | Content |
+Single Maven project, Clean Architecture by package under `com.lucchetta`:
+
+| Package | Responsibility |
 |---|---|
-| `backend/` | Spring Boot API (Java 25, PostgreSQL, Flyway) — created in stage 1 |
-| `mobile/` | Flutter app for Android and iOS — created in stage 7 |
-| `docs/` | Technical documentation and the [decision log](docs/decisions.md) |
+| `core` | Business rules, domain, use cases and ports. No Spring, database or infrastructure. |
+| `dataprovider` | Port implementations: PostgreSQL persistence, push (FCM). |
+| `entrypoint` | REST controllers, DTOs, input validation, error handling. |
+| `configuration` | Wiring of use cases, security, OpenAPI, push. |
+
+Business decisions are recorded in the [decision log](docs/decisions.md).
 
 ## Local development
 
-Requirements: JDK 25, Maven 3.9+, Docker, Flutter SDK.
+Requirements: JDK 25, Maven 3.9+ (or the included wrapper), Docker.
 
 Start the local database:
 
@@ -22,16 +28,14 @@ docker compose up -d
 
 PostgreSQL listens on `127.0.0.1:5432` (credentials in `.env.example`, development only).
 
-### Backend
-
-The backend requires JDK 25. Point `JAVA_HOME` to it, then from `backend/`:
+Build and run all tests — unit tests and integration tests (`*IT`, real PostgreSQL via
+Testcontainers; Docker must be running):
 
 ```bash
 ./mvnw verify
 ```
 
-Runs unit tests and integration tests (`*IT`, real PostgreSQL via Testcontainers — Docker must
-be running).
+Run the API:
 
 ```bash
 ./mvnw spring-boot:run
@@ -50,7 +54,7 @@ Swagger UI: http://localhost:8080/swagger-ui.html
 
 In-app notifications always work; push is an optional best-effort copy.
 
-#### Administrator recovery
+### Administrator recovery
 
 The administrator is whoever's Firebase UID is in `ADMIN_AUTH_SUBJECT`. To recover or transfer
 admin access, set the new UID (Firebase console → Authentication → Users) and restart the
