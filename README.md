@@ -20,13 +20,15 @@ Business decisions are recorded in the [decision log](docs/decisions.md).
 
 Requirements: JDK 25, Maven 3.9+ (or the included wrapper), Docker.
 
-Start the local database:
+Create your local `.env` once (development values) and start the local database:
 
 ```bash
+cp .env.example .env
 docker compose up -d
 ```
 
-PostgreSQL listens on `127.0.0.1:5432` (credentials in `.env.example`, development only).
+PostgreSQL listens on `127.0.0.1:5432`. Server deployment (API, HTTPS proxy, backups) uses the
+same compose file with the `prod` profile: see [docs/deployment.md](docs/deployment.md).
 
 Build and run all tests — unit tests and integration tests (`*IT`, real PostgreSQL via
 Testcontainers; Docker must be running):

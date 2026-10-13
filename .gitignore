@@ -3,6 +3,10 @@
 *.keystore
 *.jks
 firebase-service-account*.json
+secrets/
+
+# Server data
+backups/
 
 # IDE
 .idea/

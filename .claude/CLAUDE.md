@@ -64,8 +64,10 @@ docker compose up -d          # sobe o PostgreSQL
 ```
 
 No Windows, use `.\mvnw.cmd` com `JAVA_HOME=C:\Users\luche\.jdks\corretto-25.0.4.1`
-(o `java` do PATH é o 21). Copie `.env.example` para `.env` para sobrescrever variáveis do
-docker-compose.
+(o `java` do PATH é o 21). O `.env` é obrigatório (copie de `.env.example`).
+Deploy em servidor: mesmo `docker-compose.yml` com `--profile prod` (API + Caddy/HTTPS + backup
+diário) — ver `docs/deployment.md`. Enquanto o backend local roda a partir de `target/`, o
+Windows bloqueia o jar e `./mvnw verify` falha no repackage: pare-o ou rode em uma cópia.
 
 ## Variáveis de ambiente
 
@@ -75,7 +77,7 @@ docker-compose.
 | `ADMIN_AUTH_SUBJECT` | UID Firebase do administrador | vazio (sem admin) |
 | `DATABASE_URL` | JDBC URL do PostgreSQL | docker-compose local |
 | `DATABASE_USERNAME` / `DATABASE_PASSWORD` | Credenciais do banco | `ranking` |
-| `API_DOCS_ENABLED` | Expõe Swagger/OpenAPI | `true` |
+| `API_DOCS_ENABLED` | Expõe Swagger/OpenAPI | `true` (`false` no servidor) |
 | `PUSH_FCM_ENABLED` | Ativa push via FCM | `false` |
 | `PUSH_FCM_CREDENTIALS_FILE` | Caminho para o service account JSON do Firebase (fora do repositório) | — |
 

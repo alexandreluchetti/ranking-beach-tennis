@@ -1,11 +1,25 @@
+# Two ways to use this file (values come from .env — copy .env.example):
+#
+#   Local development (database only; run the API with ./mvnw spring-boot:run):
+#     docker compose up -d
+#
+#   Server (database + API + HTTPS proxy + daily backups):
+#     docker compose --profile prod up -d --build
+#
+# Only the proxy publishes ports to the internet (80/443). PostgreSQL is bound to the
+# server's loopback interface and the API is reachable only through the proxy.
+
+name: ranking-beach-tennis
+
 services:
   postgres:
     image: postgres:17-alpine
     container_name: ranking-beach-tennis-db
+    restart: unless-stopped
     environment:
       POSTGRES_DB: ${POSTGRES_DB:-ranking}
       POSTGRES_USER: ${POSTGRES_USER:-ranking}
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-ranking}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?Defina POSTGRES_PASSWORD no arquivo .env}
       TZ: America/Sao_Paulo
     ports:
       - "127.0.0.1:${POSTGRES_PORT:-5432}:5432"
@@ -16,6 +30,87 @@ services:
       interval: 5s
       timeout: 3s
       retries: 10
+    mem_limit: 512m
+
+  backend:
+    profiles: [prod]
+    build: .
+    image: ranking-beach-tennis:latest
+    container_name: ranking-beach-tennis-api
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      DATABASE_URL: jdbc:postgresql://postgres:5432/${POSTGRES_DB:-ranking}
+      DATABASE_USERNAME: ${POSTGRES_USER:-ranking}
+      DATABASE_PASSWORD: ${POSTGRES_PASSWORD}
+      FIREBASE_PROJECT_ID: ${FIREBASE_PROJECT_ID:-ranking-beach-tennis}
+      ADMIN_AUTH_SUBJECT: ${ADMIN_AUTH_SUBJECT:-}
+      API_DOCS_ENABLED: ${API_DOCS_ENABLED:-false}
+      PUSH_FCM_ENABLED: ${PUSH_FCM_ENABLED:-false}
+      # Service account key, kept on the server in ./secrets (never in git).
+      PUSH_FCM_CREDENTIALS_FILE: /run/secrets/firebase-service-account.json
+    volumes:
+      - ./secrets:/run/secrets:ro
+    mem_limit: 768m
+
+  caddy:
+    profiles: [prod]
+    image: caddy:2-alpine
+    container_name: ranking-beach-tennis-proxy
+    restart: unless-stopped
+    depends_on:
+      backend:
+        condition: service_healthy
+    environment:
+      DOMAIN: ${DOMAIN:-localhost}
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./deploy/Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy-data:/data
+      - caddy-config:/config
+    mem_limit: 128m
+
+  # Daily compressed dump in ./backups, keeping BACKUP_KEEP_DAYS days. Copy them off the
+  # server regularly: a backup on the same disk does not survive losing the server.
+  db-backup:
+    profiles: [prod]
+    image: postgres:17-alpine
+    container_name: ranking-beach-tennis-backup
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      PGHOST: postgres
+      PGDATABASE: ${POSTGRES_DB:-ranking}
+      PGUSER: ${POSTGRES_USER:-ranking}
+      PGPASSWORD: ${POSTGRES_PASSWORD}
+      BACKUP_KEEP_DAYS: ${BACKUP_KEEP_DAYS:-14}
+      TZ: America/Sao_Paulo
+    volumes:
+      - ./backups:/backups
+    entrypoint:
+      - sh
+      - -c
+      - |
+        while true; do
+          file=/backups/ranking-$$(date +%Y%m%d-%H%M).dump
+          if pg_dump --format=custom --file="$$file"; then
+            echo "backup ok: $$file"
+          else
+            echo "backup FAILED" >&2
+            rm -f "$$file"
+          fi
+          find /backups -name 'ranking-*.dump' -mtime +"$$BACKUP_KEEP_DAYS" -delete
+          sleep 86400
+        done
+    mem_limit: 128m
 
 volumes:
   postgres-data:
+  caddy-data:
+  caddy-config:

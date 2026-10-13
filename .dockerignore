@@ -1,0 +1,10 @@
+.git
+.idea
+.claude
+.vscode
+target
+backups
+secrets
+.env
+*.log
+docs

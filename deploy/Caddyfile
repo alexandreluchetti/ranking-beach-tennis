@@ -1,0 +1,18 @@
+# Public entry point: HTTPS with automatic Let's Encrypt certificates for $DOMAIN,
+# forwarding to the backend container. Nothing else is reachable from the internet.
+{$DOMAIN} {
+	encode zstd gzip
+
+	header {
+		Strict-Transport-Security "max-age=31536000"
+		X-Content-Type-Options "nosniff"
+		-Server
+	}
+
+	reverse_proxy backend:8080
+
+	log {
+		output stdout
+		format console
+	}
+}
