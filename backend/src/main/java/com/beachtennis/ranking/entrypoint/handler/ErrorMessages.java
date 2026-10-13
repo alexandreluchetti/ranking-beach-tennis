@@ -33,7 +33,13 @@ final class ErrorMessages {
             Map.entry("POSSIBLE_DUPLICATE_MATCH",
                     "Já existe uma partida com as mesmas duplas neste dia. Confirme se é uma nova partida."),
             Map.entry("MATCH_NOT_FOUND", "Partida não encontrada."),
-            Map.entry("PLAYER_NOT_FOUND", "Jogador não encontrado."));
+            Map.entry("PLAYER_NOT_FOUND", "Jogador não encontrado."),
+            Map.entry("MATCH_VOIDED", "Partidas anuladas não podem ser corrigidas. Reverta a anulação primeiro."),
+            Map.entry("MATCH_ALREADY_VOIDED", "Esta partida já está anulada."),
+            Map.entry("MATCH_NOT_VOIDED", "Esta partida não está anulada."),
+            Map.entry("MATCH_MODIFIED", "A partida foi alterada por outra operação. Atualize e tente novamente."),
+            Map.entry("REASON_REQUIRED", "Informe a justificativa."),
+            Map.entry("REASON_TOO_LONG", "A justificativa deve ter no máximo 500 caracteres."));
 
     private static final String FALLBACK = "Não foi possível concluir a operação.";
 

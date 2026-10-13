@@ -1,9 +1,8 @@
 package com.beachtennis.ranking.entrypoint.rest.match;
 
-import com.beachtennis.ranking.core.domain.match.Participant;
+import com.beachtennis.ranking.core.domain.BusinessCalendar;
+import com.beachtennis.ranking.core.domain.match.MatchAuditEntry;
 import com.beachtennis.ranking.core.domain.match.Score;
-import com.beachtennis.ranking.core.domain.match.Team;
-import com.beachtennis.ranking.core.exception.RuleViolationException;
 import com.beachtennis.ranking.core.usecase.match.MatchOutcome;
 import com.beachtennis.ranking.core.usecase.match.QueryMatch;
 import com.beachtennis.ranking.core.usecase.match.RegisterMatch;
@@ -22,14 +21,23 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 import java.time.LocalDate;
-import java.util.ArrayList;
+import java.time.OffsetDateTime;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
 
 @RestController
 @RequestMapping("/api/matches")
 public class MatchController {
+
+    public record MatchPageResponse(List<MatchResponse> items, int page, int size, boolean hasNext) {
+    }
+
+    /** One administrative change; {@code before}/{@code after} are snapshots of the match. */
+    public record AuditEntryResponse(MatchAuditEntry.Action action, UUID performedBy, OffsetDateTime performedAt,
+                                     String reason, Map<String, Object> before, Map<String, Object> after) {
+    }
 
     private final CurrentUserProvider currentUserProvider;
     private final RegisterMatch registerMatch;
@@ -49,7 +57,11 @@ public class MatchController {
             description = "Idempotent by id: 201 when created, 200 when the same match was already registered. "
                     + "409 POSSIBLE_DUPLICATE_MATCH asks the user to confirm (resend with confirmPossibleDuplicate).")
     public ResponseEntity<MatchResponse> register(@Valid @RequestBody RegisterMatchRequest request) {
-        RegisterMatch.Result result = registerMatch.execute(currentUserProvider.get(), toCommand(request));
+        Score score = new Score(request.format(), request.teamAGames(), request.teamBGames(),
+                request.tiebreakTeamAPoints(), request.tiebreakTeamBPoints());
+        RegisterMatch.Command command = new RegisterMatch.Command(request.id(), request.playedAt().toInstant(), score,
+                MatchRequestMapper.participants(request.teamA(), request.teamB()), request.duplicateConfirmed());
+        RegisterMatch.Result result = registerMatch.execute(currentUserProvider.get(), command);
         return ResponseEntity.status(result.created() ? HttpStatus.CREATED : HttpStatus.OK)
                 .body(MatchResponse.from(result.details()));
     }
@@ -60,7 +72,14 @@ public class MatchController {
         return MatchResponse.from(queryMatch.byId(id));
     }
 
-    public record MatchPageResponse(List<MatchResponse> items, int page, int size, boolean hasNext) {
+    @GetMapping("/{id}/audit")
+    @Operation(summary = "Administrative history of a match (corrections, voids, reversals), oldest first")
+    public List<AuditEntryResponse> audit(@PathVariable UUID id) {
+        return queryMatch.auditTrail(id).stream()
+                .map(r -> new AuditEntryResponse(r.action(), r.performedBy(),
+                        OffsetDateTime.ofInstant(r.performedAt(), BusinessCalendar.ZONE), r.reason(), r.before(),
+                        r.after()))
+                .toList();
     }
 
     @GetMapping
@@ -78,28 +97,5 @@ public class MatchController {
                 new SearchMatches.Criteria(seasonId, playerId, from, to, outcome, page, size));
         return new MatchPageResponse(result.items().stream().map(MatchResponse::from).toList(),
                 result.page(), result.size(), result.hasNext());
-    }
-
-    private static RegisterMatch.Command toCommand(RegisterMatchRequest request) {
-        Score score = new Score(request.format(), request.teamAGames(), request.teamBGames(),
-                request.tiebreakTeamAPoints(), request.tiebreakTeamBPoints());
-        List<Participant> participants = new ArrayList<>(4);
-        addTeam(participants, Team.A, request.teamA());
-        addTeam(participants, Team.B, request.teamB());
-        return new RegisterMatch.Command(request.id(), request.playedAt().toInstant(), score, participants,
-                request.duplicateConfirmed());
-    }
-
-    private static void addTeam(List<Participant> participants, Team team, List<ParticipantRequest> members) {
-        for (int i = 0; i < members.size(); i++) {
-            ParticipantRequest member = members.get(i);
-            int slot = i + 1;
-            if (member.isGuest() == (member.playerId() != null)) {
-                throw new RuleViolationException("INVALID_PARTICIPANTS");
-            }
-            participants.add(member.isGuest()
-                    ? Participant.guest(team, slot, member.guestName())
-                    : Participant.player(team, slot, member.playerId()));
-        }
     }
 }

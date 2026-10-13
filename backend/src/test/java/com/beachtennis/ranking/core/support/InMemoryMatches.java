@@ -2,6 +2,7 @@ package com.beachtennis.ranking.core.support;
 
 import com.beachtennis.ranking.core.domain.match.Match;
 import com.beachtennis.ranking.core.domain.match.MatchStatus;
+import com.beachtennis.ranking.core.exception.ConflictException;
 import com.beachtennis.ranking.core.port.MatchRepository;
 
 import java.time.Instant;
@@ -34,6 +35,18 @@ public class InMemoryMatches implements MatchRepository {
     public boolean insertIfAbsent(Match match) {
         insertCalls++;
         return matches.putIfAbsent(match.id(), match) == null;
+    }
+
+    @Override
+    public Match update(Match match) {
+        Match stored = matches.get(match.id());
+        if (stored == null || stored.version() != match.version()) {
+            throw new ConflictException("MATCH_MODIFIED");
+        }
+        Match saved = new Match(match.id(), match.playedAt(), match.score(), match.participants(), match.status(),
+                match.registeredBy(), match.registeredAt(), match.updatedAt(), match.voiding(), match.version() + 1);
+        matches.put(saved.id(), saved);
+        return saved;
     }
 
     /** Test helper: stores a match as-is (any status). */

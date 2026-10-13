@@ -6,6 +6,8 @@ import com.beachtennis.ranking.core.domain.match.MatchStatus;
 import com.beachtennis.ranking.core.domain.match.Participant;
 import com.beachtennis.ranking.core.domain.match.Score;
 import com.beachtennis.ranking.core.domain.match.Team;
+import com.beachtennis.ranking.core.domain.match.VoidInfo;
+import com.beachtennis.ranking.core.exception.ConflictException;
 import com.beachtennis.ranking.core.port.MatchRepository;
 import org.springframework.jdbc.core.simple.JdbcClient;
 import org.springframework.stereotype.Component;
@@ -32,7 +34,8 @@ public class MatchRepositoryAdapter implements MatchRepository {
 
     private static final String SELECT_MATCH = """
             select id, played_at, format, team_a_games, team_b_games, tiebreak_team_a_points,
-                   tiebreak_team_b_points, status, registered_by, registered_at, updated_at
+                   tiebreak_team_b_points, status, registered_by, registered_at, updated_at,
+                   void_reason, voided_by, voided_at, version
             from match
             """;
 
@@ -112,6 +115,46 @@ public class MatchRepositoryAdapter implements MatchRepository {
         if (inserted == 0) {
             return false;
         }
+        insertParticipants(match);
+        return true;
+    }
+
+    @Override
+    @Transactional
+    public Match update(Match match) {
+        VoidInfo voiding = match.voiding();
+        int updated = jdbcClient.sql("""
+                        update match
+                        set played_at = :playedAt, format = :format, team_a_games = :teamAGames,
+                            team_b_games = :teamBGames, tiebreak_team_a_points = :tiebreakA,
+                            tiebreak_team_b_points = :tiebreakB, status = :status, updated_at = :updatedAt,
+                            void_reason = :voidReason, voided_by = :voidedBy, voided_at = :voidedAt,
+                            version = version + 1
+                        where id = :id and version = :version
+                        """)
+                .param("id", match.id())
+                .param("version", match.version())
+                .param("playedAt", utc(match.playedAt()))
+                .param("format", match.format().name())
+                .param("teamAGames", match.score().teamAGames())
+                .param("teamBGames", match.score().teamBGames())
+                .param("tiebreakA", match.score().tiebreakTeamAPoints())
+                .param("tiebreakB", match.score().tiebreakTeamBPoints())
+                .param("status", match.status().name())
+                .param("updatedAt", utc(match.updatedAt()))
+                .param("voidReason", voiding == null ? null : voiding.reason())
+                .param("voidedBy", voiding == null ? null : voiding.voidedBy())
+                .param("voidedAt", voiding == null ? null : utc(voiding.voidedAt()))
+                .update();
+        if (updated == 0) {
+            throw new ConflictException("MATCH_MODIFIED");
+        }
+        jdbcClient.sql("delete from match_participant where match_id = :id").param("id", match.id()).update();
+        insertParticipants(match);
+        return findById(match.id()).orElseThrow();
+    }
+
+    private void insertParticipants(Match match) {
         for (Participant p : match.participants()) {
             jdbcClient.sql("""
                             insert into match_participant (match_id, team, slot, player_id, guest_name)
@@ -124,7 +167,6 @@ public class MatchRepositoryAdapter implements MatchRepository {
                     .param("guestName", p.guestName())
                     .update();
         }
-        return true;
     }
 
     private List<Match> assemble(List<MatchRow> rows) {
@@ -135,7 +177,7 @@ public class MatchRepositoryAdapter implements MatchRepository {
         List<Match> matches = new ArrayList<>(rows.size());
         for (MatchRow row : rows) {
             matches.add(new Match(row.id(), row.playedAt(), row.score(), participants.get(row.id()), row.status(),
-                    row.registeredBy(), row.registeredAt(), row.updatedAt()));
+                    row.registeredBy(), row.registeredAt(), row.updatedAt(), row.voiding(), row.version()));
         }
         return matches;
     }
@@ -162,6 +204,9 @@ public class MatchRepositoryAdapter implements MatchRepository {
                 rs.getInt("team_b_games"),
                 rs.getObject("tiebreak_team_a_points", Integer.class),
                 rs.getObject("tiebreak_team_b_points", Integer.class));
+        String voidReason = rs.getString("void_reason");
+        VoidInfo voiding = voidReason == null ? null
+                : new VoidInfo(voidReason, rs.getObject("voided_by", UUID.class), instant(rs, "voided_at"));
         return new MatchRow(
                 rs.getObject("id", UUID.class),
                 instant(rs, "played_at"),
@@ -169,7 +214,9 @@ public class MatchRepositoryAdapter implements MatchRepository {
                 MatchStatus.valueOf(rs.getString("status")),
                 rs.getObject("registered_by", UUID.class),
                 instant(rs, "registered_at"),
-                instant(rs, "updated_at"));
+                instant(rs, "updated_at"),
+                voiding,
+                rs.getInt("version"));
     }
 
     private static Instant instant(ResultSet rs, String column) throws SQLException {
@@ -181,6 +228,6 @@ public class MatchRepositoryAdapter implements MatchRepository {
     }
 
     private record MatchRow(UUID id, Instant playedAt, Score score, MatchStatus status, UUID registeredBy,
-                            Instant registeredAt, Instant updatedAt) {
+                            Instant registeredAt, Instant updatedAt, VoidInfo voiding, int version) {
     }
 }

@@ -58,8 +58,8 @@ class RegisterMatchTest {
         Clock clock = Clock.fixed(NOW, ZoneOffset.UTC);
         MatchDetailsAssembler assembler = new MatchDetailsAssembler(seasons, players, new RankingEligibilityPolicy(),
                 new GamesPlusWinBonusScoringPolicy());
-        useCase = new RegisterMatch(new GetOrCreateCurrentPlayer(players, clock), matches, players, assembler,
-                new DirectTransactionRunner(), clock);
+        useCase = new RegisterMatch(new GetOrCreateCurrentPlayer(players, clock), matches,
+                new MatchValidator(players), assembler, new DirectTransactionRunner(), clock);
     }
 
     @Test
@@ -139,6 +139,21 @@ class RegisterMatchTest {
                 command(id, new Score(MatchFormat.STANDARD, 6, 3, null, null), regularTeams())))
                 .isInstanceOf(ConflictException.class)
                 .hasMessage("MATCH_ID_CONFLICT");
+        assertThat(matches.count()).isEqualTo(1);
+    }
+
+    @Test
+    void lateResendAfterAnAdministrativeChangeReturnsTheCurrentState() {
+        UUID id = UUID.randomUUID();
+        useCase.execute(caller, command(id, sixFour(), regularTeams()));
+        var stored = matches.findById(id).orElseThrow();
+        matches.update(stored.corrected(stored.playedAt(), new Score(MatchFormat.STANDARD, 6, 2, null, null),
+                stored.participants(), NOW));
+
+        RegisterMatch.Result resend = useCase.execute(caller, command(id, sixFour(), regularTeams()));
+
+        assertThat(resend.created()).isFalse();
+        assertThat(resend.details().match().score().teamBGames()).isEqualTo(2);
         assertThat(matches.count()).isEqualTo(1);
     }
 

@@ -18,6 +18,15 @@ public interface MatchRepository {
      */
     boolean insertIfAbsent(Match match);
 
+    /**
+     * Saves a changed match if it is still at {@code match.version()}.
+     *
+     * @return the stored match, with its version incremented
+     * @throws com.beachtennis.ranking.core.exception.ConflictException MATCH_MODIFIED when someone
+     *                                                                   else changed it first
+     */
+    Match update(Match match);
+
     /** Valid (not voided) matches played in {@code [from, to)}. */
     List<Match> findValidPlayedBetween(Instant from, Instant to);
 

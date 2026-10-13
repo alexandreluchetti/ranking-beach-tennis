@@ -32,9 +32,15 @@ public record MatchResponse(
         List<ParticipantResponse> teamA,
         List<ParticipantResponse> teamB,
         UUID registeredBy,
-        OffsetDateTime registeredAt) {
+        OffsetDateTime registeredAt,
+        VoidSummary voiding,
+        int version) {
 
     public record SeasonSummary(UUID id, String name) {
+    }
+
+    /** Present only while the match is voided. */
+    public record VoidSummary(String reason, UUID voidedBy, OffsetDateTime voidedAt) {
     }
 
     /**
@@ -64,7 +70,10 @@ public record MatchResponse(
                 team(details, Team.A),
                 team(details, Team.B),
                 match.registeredBy(),
-                OffsetDateTime.ofInstant(match.registeredAt(), BusinessCalendar.ZONE));
+                OffsetDateTime.ofInstant(match.registeredAt(), BusinessCalendar.ZONE),
+                match.voiding() == null ? null : new VoidSummary(match.voiding().reason(), match.voiding().voidedBy(),
+                        OffsetDateTime.ofInstant(match.voiding().voidedAt(), BusinessCalendar.ZONE)),
+                match.version());
     }
 
     private static List<ParticipantResponse> team(MatchDetails details, Team team) {

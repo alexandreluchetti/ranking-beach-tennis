@@ -1,11 +1,14 @@
 package com.beachtennis.ranking.configuration;
 
+import com.beachtennis.ranking.core.port.MatchAuditLog;
 import com.beachtennis.ranking.core.port.MatchRepository;
 import com.beachtennis.ranking.core.port.PlayerRepository;
 import com.beachtennis.ranking.core.scoring.GamesPlusWinBonusScoringPolicy;
 import com.beachtennis.ranking.core.scoring.RankingEligibilityPolicy;
 import com.beachtennis.ranking.core.scoring.ScoringPolicy;
 import com.beachtennis.ranking.core.usecase.match.MatchDetailsAssembler;
+import com.beachtennis.ranking.core.usecase.match.MatchValidator;
+import com.beachtennis.ranking.core.usecase.match.admin.MatchAdministration;
 import com.beachtennis.ranking.core.usecase.match.QueryMatch;
 import com.beachtennis.ranking.core.usecase.match.RegisterMatch;
 import com.beachtennis.ranking.core.usecase.match.SearchMatches;
@@ -90,19 +93,37 @@ public class UseCaseConfiguration {
     }
 
     @Bean
+    MatchValidator matchValidator(PlayerRepository playerRepository) {
+        return new MatchValidator(playerRepository);
+    }
+
+    @Bean
     RegisterMatch registerMatch(GetOrCreateCurrentPlayer getOrCreateCurrentPlayer,
                                 MatchRepository matchRepository,
-                                PlayerRepository playerRepository,
+                                MatchValidator matchValidator,
                                 MatchDetailsAssembler matchDetailsAssembler,
                                 TransactionRunner transactionRunner,
                                 Clock clock) {
-        return new RegisterMatch(getOrCreateCurrentPlayer, matchRepository, playerRepository, matchDetailsAssembler,
+        return new RegisterMatch(getOrCreateCurrentPlayer, matchRepository, matchValidator, matchDetailsAssembler,
                 transactionRunner, clock);
     }
 
     @Bean
-    QueryMatch queryMatch(MatchRepository matchRepository, MatchDetailsAssembler matchDetailsAssembler) {
-        return new QueryMatch(matchRepository, matchDetailsAssembler);
+    QueryMatch queryMatch(MatchRepository matchRepository, MatchAuditLog matchAuditLog,
+                          MatchDetailsAssembler matchDetailsAssembler) {
+        return new QueryMatch(matchRepository, matchAuditLog, matchDetailsAssembler);
+    }
+
+    @Bean
+    MatchAdministration matchAdministration(GetOrCreateCurrentPlayer getOrCreateCurrentPlayer,
+                                            MatchRepository matchRepository,
+                                            MatchAuditLog matchAuditLog,
+                                            MatchValidator matchValidator,
+                                            MatchDetailsAssembler matchDetailsAssembler,
+                                            TransactionRunner transactionRunner,
+                                            Clock clock) {
+        return new MatchAdministration(getOrCreateCurrentPlayer, matchRepository, matchAuditLog, matchValidator,
+                matchDetailsAssembler, transactionRunner, clock);
     }
 
     @Bean

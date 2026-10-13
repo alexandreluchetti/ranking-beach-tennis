@@ -9,34 +9,28 @@ import com.beachtennis.ranking.core.domain.match.Participant;
 import com.beachtennis.ranking.core.domain.match.Score;
 import com.beachtennis.ranking.core.exception.ConflictException;
 import com.beachtennis.ranking.core.exception.PossibleDuplicateMatchException;
-import com.beachtennis.ranking.core.exception.RuleViolationException;
 import com.beachtennis.ranking.core.port.MatchRepository;
-import com.beachtennis.ranking.core.port.PlayerRepository;
 import com.beachtennis.ranking.core.port.TransactionRunner;
 import com.beachtennis.ranking.core.usecase.player.GetOrCreateCurrentPlayer;
 
 import java.time.Clock;
-import java.time.Duration;
 import java.time.Instant;
 import java.time.LocalDate;
 import java.util.List;
 import java.util.Objects;
-import java.util.Set;
 import java.util.UUID;
-import java.util.stream.Collectors;
 
 /**
  * Registers a finished match. Any authenticated user may do it.
  * <ul>
- *     <li>Idempotent by client-generated id: resending identical content returns the stored match
- *     without creating anything; different content under the same id is a conflict.</li>
+ *     <li>Idempotent by client-generated id: resending returns the stored match without creating
+ *     anything. Different content under the same id is a conflict, unless the administrator has
+ *     changed the stored match meanwhile (then the resend just returns its current state).</li>
  *     <li>Matches more than 10 minutes in the future are rejected (D-011).</li>
  *     <li>A same-day match with the same teams requires explicit confirmation (D-012).</li>
  * </ul>
  */
 public class RegisterMatch {
-
-    static final Duration FUTURE_TOLERANCE = Duration.ofMinutes(10);
 
     public record Command(
             UUID id,
@@ -52,20 +46,20 @@ public class RegisterMatch {
 
     private final GetOrCreateCurrentPlayer getOrCreateCurrentPlayer;
     private final MatchRepository matchRepository;
-    private final PlayerRepository playerRepository;
+    private final MatchValidator validator;
     private final MatchDetailsAssembler assembler;
     private final TransactionRunner transactionRunner;
     private final Clock clock;
 
     public RegisterMatch(GetOrCreateCurrentPlayer getOrCreateCurrentPlayer,
                          MatchRepository matchRepository,
-                         PlayerRepository playerRepository,
+                         MatchValidator validator,
                          MatchDetailsAssembler assembler,
                          TransactionRunner transactionRunner,
                          Clock clock) {
         this.getOrCreateCurrentPlayer = getOrCreateCurrentPlayer;
         this.matchRepository = matchRepository;
-        this.playerRepository = playerRepository;
+        this.validator = validator;
         this.assembler = assembler;
         this.transactionRunner = transactionRunner;
         this.clock = clock;
@@ -83,7 +77,10 @@ public class RegisterMatch {
             if (existing != null) {
                 return idempotentResend(existing, match);
             }
-            validateNew(match, now, command.confirmPossibleDuplicate());
+            validator.validate(match, now);
+            if (!command.confirmPossibleDuplicate()) {
+                rejectPossibleDuplicates(match);
+            }
             if (!matchRepository.insertIfAbsent(match)) {
                 // Lost a race against a concurrent resend of the same id.
                 return idempotentResend(matchRepository.findById(match.id()).orElseThrow(), match);
@@ -93,37 +90,23 @@ public class RegisterMatch {
     }
 
     private Result idempotentResend(Match existing, Match requested) {
-        if (!existing.hasSameContentAs(requested)) {
+        boolean changedByAdministrator = existing.version() > 0;
+        if (!changedByAdministrator && !existing.hasSameContentAs(requested)) {
             throw new ConflictException("MATCH_ID_CONFLICT");
         }
         return new Result(assembler.assemble(existing), false);
     }
 
-    private void validateNew(Match match, Instant now, boolean duplicateConfirmed) {
-        if (match.playedAt().isAfter(now.plus(FUTURE_TOLERANCE))) {
-            throw new RuleViolationException("MATCH_IN_FUTURE");
-        }
-        Set<UUID> playerIds = match.participants().stream()
-                .map(Participant::playerId)
-                .filter(Objects::nonNull)
-                .collect(Collectors.toSet());
-        if (playerRepository.findAllByIds(playerIds).size() != playerIds.size()) {
-            throw new RuleViolationException("UNKNOWN_PLAYER");
-        }
-        if (!duplicateConfirmed) {
-            List<UUID> duplicates = sameDayMatches(match.playedOn()).stream()
-                    .filter(match::hasSameTeamsAs)
-                    .map(Match::id)
-                    .toList();
-            if (!duplicates.isEmpty()) {
-                throw new PossibleDuplicateMatchException(duplicates);
-            }
-        }
-    }
-
-    private List<Match> sameDayMatches(LocalDate day) {
+    private void rejectPossibleDuplicates(Match match) {
+        LocalDate day = match.playedOn();
         Instant from = day.atStartOfDay(BusinessCalendar.ZONE).toInstant();
         Instant to = day.plusDays(1).atStartOfDay(BusinessCalendar.ZONE).toInstant();
-        return matchRepository.findValidPlayedBetween(from, to);
+        List<UUID> duplicates = matchRepository.findValidPlayedBetween(from, to).stream()
+                .filter(match::hasSameTeamsAs)
+                .map(Match::id)
+                .toList();
+        if (!duplicates.isEmpty()) {
+            throw new PossibleDuplicateMatchException(duplicates);
+        }
     }
 }

@@ -91,6 +91,14 @@ that it is a different match. Resending the same match id is idempotent and is n
 4. **Fewer** matches played (same result with fewer matches ranks higher).
 5. Still tied: shared position.
 
+### D-014 — Late registrations into closed seasons
+A match dated inside a closed season still counts for that season, even if registered or
+synced after the season ended. A closed season's final ranking may therefore change.
+
+### D-015 — Notifying removed participants
+When a correction removes a registered player from a match, that player is notified too, in
+addition to the current participants (implemented with notifications, stage 6).
+
 ## Technical defaults (easy to change)
 
 - Display name: 2–40 characters, whitespace normalized. Initial value: name from the login
@@ -111,16 +119,19 @@ that it is a different match. Resending the same match id is idempotent and is n
 - Career statistics include every valid match (inside or outside seasons, with or without
   guests); career points are the sum of points from matches that counted.
 - History: 20 matches per page by default, at most 100.
+- Corrections: justification optional; voids and void reversals: justification required (up to
+  500 characters). A voided match must be restored before it can be corrected.
+- A correction is a full replacement of date, format, score and participants and applies the
+  same rules as registration (except the possible-duplicate check). It must state the match
+  version it was based on; if the match changed meanwhile, it is rejected.
+- Every authenticated user can read a match's audit trail (transparency for participants).
+- If the administrator changed a match before its author's offline resend arrived, the resend
+  returns the current state instead of failing.
 - Rankings and statistics are computed in Java from the matches, so the scoring formula exists
   in exactly one place (`GamesPlusWinBonusScoringPolicy`).
 
 ## Proposed (awaiting approval)
 
-- Late registrations into a closed season (e.g. a match from the season's last day synced the
-  next morning) currently change that season's final ranking. Keep, or block after a grace
-  period?
-
 - Display names unique, case-insensitive.
-- Notification recipients on corrections (include removed participants?).
 - Player deactivation for people who leave the group.
 - Infrastructure and distribution choices.
