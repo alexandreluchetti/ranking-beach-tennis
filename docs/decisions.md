@@ -99,6 +99,10 @@ synced after the season ended. A closed season's final ranking may therefore cha
 When a correction removes a registered player from a match, that player is notified too, in
 addition to the current participants (implemented with notifications, stage 6).
 
+### D-016 — Pending (offline) matches
+A match saved on the phone and not yet sent can be edited or discarded on that phone, only by
+the user who registered it. Once the server has it, only the administrator can change it.
+
 ## Technical defaults (easy to change)
 
 - Display name: 2–40 characters, whitespace normalized. Initial value: name from the login
