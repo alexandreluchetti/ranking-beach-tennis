@@ -51,6 +51,7 @@ Swagger UI: http://localhost:8080/swagger-ui.html
 | `ADMIN_AUTH_SUBJECT` | Firebase UID of the single administrator | empty (no admin) |
 | `DATABASE_URL` / `DATABASE_USERNAME` / `DATABASE_PASSWORD` | PostgreSQL connection | local docker-compose |
 | `API_DOCS_ENABLED` | Exposes Swagger / OpenAPI (disable in production) | `true` |
+| `CORS_ALLOWED_ORIGINS` | Comma-separated exact origins of the web app allowed to call `/api/**` (no credentials, Bearer token only). Locally, run the web app on a fixed port (`flutter run -d chrome --web-port 5000`) and set `http://localhost:5000` | empty (no browser access) |
 | `PUSH_FCM_ENABLED` | Sends push notifications through Firebase Cloud Messaging | `false` |
 | `PUSH_FCM_CREDENTIALS_FILE` | Path to the Firebase service account key (JSON). Keep it outside the repository. | — |
 

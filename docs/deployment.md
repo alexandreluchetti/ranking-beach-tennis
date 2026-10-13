@@ -28,6 +28,7 @@ All configuration lives in `.env` on the server (copy `.env.example`). Never com
 | `DOMAIN` | No | Public name of the API. |
 | `FIREBASE_PROJECT_ID` | No | `ranking-beach-tennis`. |
 | `API_DOCS_ENABLED` | No | Keep `false` in production. |
+| `CORS_ALLOWED_ORIGINS` | No | Web app origins allowed to call `/api/**` from a browser, comma-separated and exact (`https://ranking-beach-tennis.web.app,https://ranking-beach-tennis.firebaseapp.com`). Empty blocks all browser cross-origin calls; the mobile apps are not affected. |
 
 ## First deployment
 

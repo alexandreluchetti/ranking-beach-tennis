@@ -19,12 +19,14 @@ import static org.springframework.security.test.web.servlet.request.SecurityMock
  */
 @SpringBootTest(properties = {
         "app.security.firebase-project-id=test-project",
-        "app.security.admin-subject=" + IntegrationTest.ADMIN_UID
+        "app.security.admin-subject=" + IntegrationTest.ADMIN_UID,
+        "app.cors.allowed-origins=" + IntegrationTest.WEB_ORIGIN + ", http://localhost:5000"
 })
 @AutoConfigureMockMvc
 public abstract class IntegrationTest {
 
     protected static final String ADMIN_UID = "admin-uid";
+    protected static final String WEB_ORIGIN = "https://web.example.test";
 
     @ServiceConnection
     static final PostgreSQLContainer POSTGRES = new PostgreSQLContainer("postgres:17-alpine");

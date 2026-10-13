@@ -18,6 +18,9 @@ app:
   security:
     firebase-project-id: ${FIREBASE_PROJECT_ID:ranking-beach-tennis}
     admin-subject: ${ADMIN_AUTH_SUBJECT:}
+  cors:
+    # Comma-separated exact origins of the web app; empty disables cross-origin access.
+    allowed-origins: ${CORS_ALLOWED_ORIGINS:}
   push:
     fcm:
       enabled: ${PUSH_FCM_ENABLED:false}

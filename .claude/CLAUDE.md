@@ -78,6 +78,7 @@ Windows bloqueia o jar e `./mvnw verify` falha no repackage: pare-o ou rode em u
 | `DATABASE_URL` | JDBC URL do PostgreSQL | docker-compose local |
 | `DATABASE_USERNAME` / `DATABASE_PASSWORD` | Credenciais do banco | `ranking` |
 | `API_DOCS_ENABLED` | Expõe Swagger/OpenAPI | `true` (`false` no servidor) |
+| `CORS_ALLOWED_ORIGINS` | Origens exatas do app web, separadas por vírgula (CORS só em `/api/**`, sem credenciais) | vazio (sem acesso por navegador) |
 | `PUSH_FCM_ENABLED` | Ativa push via FCM | `false` |
 | `PUSH_FCM_CREDENTIALS_FILE` | Caminho para o service account JSON do Firebase (fora do repositório) | — |
 
