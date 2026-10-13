@@ -5,6 +5,7 @@ import com.beachtennis.ranking.core.domain.match.MatchStatus;
 import com.beachtennis.ranking.core.port.MatchRepository;
 
 import java.time.Instant;
+import java.util.Comparator;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -33,6 +34,22 @@ public class InMemoryMatches implements MatchRepository {
     public boolean insertIfAbsent(Match match) {
         insertCalls++;
         return matches.putIfAbsent(match.id(), match) == null;
+    }
+
+    /** Test helper: stores a match as-is (any status). */
+    public Match add(Match match) {
+        matches.put(match.id(), match);
+        return match;
+    }
+
+    @Override
+    public List<Match> findPlayed(Instant from, Instant to, UUID playerId) {
+        return matches.values().stream()
+                .filter(m -> from == null || !m.playedAt().isBefore(from))
+                .filter(m -> to == null || m.playedAt().isBefore(to))
+                .filter(m -> playerId == null || m.participants().stream().anyMatch(p -> playerId.equals(p.playerId())))
+                .sorted(Comparator.comparing(Match::playedAt).reversed())
+                .toList();
     }
 
     @Override

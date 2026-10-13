@@ -38,6 +38,12 @@ public class PlayerRepositoryAdapter implements PlayerRepository {
     }
 
     @Override
+    @Transactional(readOnly = true)
+    public List<Player> findAll() {
+        return jpaRepository.findAll().stream().map(PlayerRepositoryAdapter::toDomain).toList();
+    }
+
+    @Override
     @Transactional
     public void insertIfAbsent(Player player) {
         jpaRepository.insertIfAbsent(

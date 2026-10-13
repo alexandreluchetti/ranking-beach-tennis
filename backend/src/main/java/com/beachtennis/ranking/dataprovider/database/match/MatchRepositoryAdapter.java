@@ -65,6 +65,28 @@ public class MatchRepositoryAdapter implements MatchRepository {
     }
 
     @Override
+    @Transactional(readOnly = true)
+    public List<Match> findPlayed(Instant from, Instant to, UUID playerId) {
+        StringBuilder sql = new StringBuilder(SELECT_MATCH).append(" where true");
+        Map<String, Object> params = new HashMap<>();
+        if (from != null) {
+            sql.append(" and played_at >= :from");
+            params.put("from", utc(from));
+        }
+        if (to != null) {
+            sql.append(" and played_at < :to");
+            params.put("to", utc(to));
+        }
+        if (playerId != null) {
+            sql.append(" and exists (select 1 from match_participant mp where mp.match_id = match.id"
+                    + " and mp.player_id = :playerId)");
+            params.put("playerId", playerId);
+        }
+        sql.append(" order by played_at desc, registered_at desc");
+        return assemble(jdbcClient.sql(sql.toString()).params(params).query(MatchRepositoryAdapter::mapRow).list());
+    }
+
+    @Override
     @Transactional
     public boolean insertIfAbsent(Match match) {
         int inserted = jdbcClient.sql("""

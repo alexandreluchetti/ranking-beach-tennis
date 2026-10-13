@@ -84,6 +84,13 @@ When registering a match, if a valid match already exists on the same day (Bras�
 same two teams, the server answers "possible duplicate" and the user must explicitly confirm
 that it is a different match. Resending the same match id is idempotent and is not a duplicate.
 
+### D-013 — Ranking order and tie-breaks
+1. More points.
+2. More wins.
+3. Better game difference.
+4. **Fewer** matches played (same result with fewer matches ranks higher).
+5. Still tied: shared position.
+
 ## Technical defaults (easy to change)
 
 - Display name: 2–40 characters, whitespace normalized. Initial value: name from the login
@@ -96,11 +103,24 @@ that it is a different match. Resending the same match id is idempotent and is n
   tie-break winner must be the match winner. No other limit (e.g. "first to 7") is enforced.
 - The user registering a match does not need to be one of its participants.
 - Match time is kept with whole-second precision.
+- Shared positions skip the following ones (1, 1, 3). Inside a shared position, players are
+  listed alphabetically (display only, not a tie-break).
+- Ranking members of a season: every player registered up to the season's end date, plus anyone
+  who played in it. The active season therefore lists everyone; a past season does not list
+  people who joined after it ended. The administrator is a player like any other.
+- Career statistics include every valid match (inside or outside seasons, with or without
+  guests); career points are the sum of points from matches that counted.
+- History: 20 matches per page by default, at most 100.
+- Rankings and statistics are computed in Java from the matches, so the scoring formula exists
+  in exactly one place (`GamesPlusWinBonusScoringPolicy`).
 
 ## Proposed (awaiting approval)
 
+- Late registrations into a closed season (e.g. a match from the season's last day synced the
+  next morning) currently change that season's final ranking. Keep, or block after a grace
+  period?
+
 - Display names unique, case-insensitive.
-- Tie-break order for the ranking (must be revisited now that games count as points).
 - Notification recipients on corrections (include removed participants?).
 - Player deactivation for people who leave the group.
 - Infrastructure and distribution choices.

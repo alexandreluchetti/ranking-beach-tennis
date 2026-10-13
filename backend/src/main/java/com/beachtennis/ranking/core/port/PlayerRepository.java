@@ -14,6 +14,8 @@ public interface PlayerRepository {
 
     List<Player> findAllByIds(Collection<UUID> ids);
 
+    List<Player> findAll();
+
     /**
      * Inserts the player unless one with the same identity already exists. Safe under concurrent
      * first logins of the same user.

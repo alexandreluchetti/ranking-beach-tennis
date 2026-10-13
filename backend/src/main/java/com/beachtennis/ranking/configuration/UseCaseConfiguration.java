@@ -8,6 +8,10 @@ import com.beachtennis.ranking.core.scoring.ScoringPolicy;
 import com.beachtennis.ranking.core.usecase.match.MatchDetailsAssembler;
 import com.beachtennis.ranking.core.usecase.match.QueryMatch;
 import com.beachtennis.ranking.core.usecase.match.RegisterMatch;
+import com.beachtennis.ranking.core.usecase.match.SearchMatches;
+import com.beachtennis.ranking.core.usecase.player.QueryPlayers;
+import com.beachtennis.ranking.core.usecase.ranking.GetPlayerProfile;
+import com.beachtennis.ranking.core.usecase.ranking.GetSeasonRanking;
 import com.beachtennis.ranking.core.port.SeasonAuditLog;
 import com.beachtennis.ranking.core.port.SeasonRepository;
 import com.beachtennis.ranking.core.port.TransactionRunner;
@@ -99,5 +103,28 @@ public class UseCaseConfiguration {
     @Bean
     QueryMatch queryMatch(MatchRepository matchRepository, MatchDetailsAssembler matchDetailsAssembler) {
         return new QueryMatch(matchRepository, matchDetailsAssembler);
+    }
+
+    @Bean
+    SearchMatches searchMatches(MatchRepository matchRepository, QuerySeasons querySeasons,
+                                MatchDetailsAssembler matchDetailsAssembler) {
+        return new SearchMatches(matchRepository, querySeasons, matchDetailsAssembler);
+    }
+
+    @Bean
+    QueryPlayers queryPlayers(PlayerRepository playerRepository) {
+        return new QueryPlayers(playerRepository);
+    }
+
+    @Bean
+    GetSeasonRanking getSeasonRanking(QuerySeasons querySeasons, MatchRepository matchRepository,
+                                      PlayerRepository playerRepository, MatchDetailsAssembler matchDetailsAssembler) {
+        return new GetSeasonRanking(querySeasons, matchRepository, playerRepository, matchDetailsAssembler);
+    }
+
+    @Bean
+    GetPlayerProfile getPlayerProfile(PlayerRepository playerRepository, MatchRepository matchRepository,
+                                      QuerySeasons querySeasons, MatchDetailsAssembler matchDetailsAssembler) {
+        return new GetPlayerProfile(playerRepository, matchRepository, querySeasons, matchDetailsAssembler);
     }
 }

@@ -4,8 +4,10 @@ import com.beachtennis.ranking.core.domain.match.Participant;
 import com.beachtennis.ranking.core.domain.match.Score;
 import com.beachtennis.ranking.core.domain.match.Team;
 import com.beachtennis.ranking.core.exception.RuleViolationException;
+import com.beachtennis.ranking.core.usecase.match.MatchOutcome;
 import com.beachtennis.ranking.core.usecase.match.QueryMatch;
 import com.beachtennis.ranking.core.usecase.match.RegisterMatch;
+import com.beachtennis.ranking.core.usecase.match.SearchMatches;
 import com.beachtennis.ranking.entrypoint.security.CurrentUserProvider;
 import io.swagger.v3.oas.annotations.Operation;
 import jakarta.validation.Valid;
@@ -16,10 +18,13 @@ import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
+import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Set;
 import java.util.UUID;
 
 @RestController
@@ -29,12 +34,14 @@ public class MatchController {
     private final CurrentUserProvider currentUserProvider;
     private final RegisterMatch registerMatch;
     private final QueryMatch queryMatch;
+    private final SearchMatches searchMatches;
 
     public MatchController(CurrentUserProvider currentUserProvider, RegisterMatch registerMatch,
-                           QueryMatch queryMatch) {
+                           QueryMatch queryMatch, SearchMatches searchMatches) {
         this.currentUserProvider = currentUserProvider;
         this.registerMatch = registerMatch;
         this.queryMatch = queryMatch;
+        this.searchMatches = searchMatches;
     }
 
     @PostMapping
@@ -51,6 +58,26 @@ public class MatchController {
     @Operation(summary = "Returns one match")
     public MatchResponse get(@PathVariable UUID id) {
         return MatchResponse.from(queryMatch.byId(id));
+    }
+
+    public record MatchPageResponse(List<MatchResponse> items, int page, int size, boolean hasNext) {
+    }
+
+    @GetMapping
+    @Operation(summary = "Match history, most recent first",
+            description = "Filters can be combined. Dates are inclusive (Brasília). "
+                    + "outcome may be repeated: COUNTED, NOT_COUNTED, VOIDED (default: all).")
+    public MatchPageResponse search(@RequestParam(required = false) UUID seasonId,
+                                    @RequestParam(required = false) UUID playerId,
+                                    @RequestParam(required = false) LocalDate from,
+                                    @RequestParam(required = false) LocalDate to,
+                                    @RequestParam(required = false) Set<MatchOutcome> outcome,
+                                    @RequestParam(defaultValue = "0") int page,
+                                    @RequestParam(defaultValue = "20") int size) {
+        SearchMatches.Page result = searchMatches.execute(
+                new SearchMatches.Criteria(seasonId, playerId, from, to, outcome, page, size));
+        return new MatchPageResponse(result.items().stream().map(MatchResponse::from).toList(),
+                result.page(), result.size(), result.hasNext());
     }
 
     private static RegisterMatch.Command toCommand(RegisterMatchRequest request) {

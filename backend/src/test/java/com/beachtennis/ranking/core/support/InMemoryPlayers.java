@@ -18,9 +18,13 @@ public class InMemoryPlayers implements PlayerRepository {
     private final Map<UUID, Player> players = new LinkedHashMap<>();
 
     public Player add(String name) {
-        Instant now = Instant.parse("2026-01-01T12:00:00Z");
+        return add(name, Instant.parse("2026-01-01T12:00:00Z"));
+    }
+
+    public Player add(String name, Instant registeredAt) {
         UUID id = UUID.randomUUID();
-        Player player = new Player(id, new AuthIdentity("firebase", "uid-" + id), null, new DisplayName(name), now, now);
+        Player player = new Player(id, new AuthIdentity("firebase", "uid-" + id), null, new DisplayName(name),
+                registeredAt, registeredAt);
         players.put(id, player);
         return player;
     }
@@ -33,6 +37,11 @@ public class InMemoryPlayers implements PlayerRepository {
     @Override
     public List<Player> findAllByIds(Collection<UUID> ids) {
         return ids.stream().map(players::get).filter(p -> p != null).toList();
+    }
+
+    @Override
+    public List<Player> findAll() {
+        return List.copyOf(players.values());
     }
 
     @Override

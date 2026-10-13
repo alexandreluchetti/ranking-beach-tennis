@@ -32,7 +32,8 @@ final class ErrorMessages {
             Map.entry("MATCH_ID_CONFLICT", "Já existe outra partida registrada com este identificador."),
             Map.entry("POSSIBLE_DUPLICATE_MATCH",
                     "Já existe uma partida com as mesmas duplas neste dia. Confirme se é uma nova partida."),
-            Map.entry("MATCH_NOT_FOUND", "Partida não encontrada."));
+            Map.entry("MATCH_NOT_FOUND", "Partida não encontrada."),
+            Map.entry("PLAYER_NOT_FOUND", "Jogador não encontrado."));
 
     private static final String FALLBACK = "Não foi possível concluir a operação.";
 
