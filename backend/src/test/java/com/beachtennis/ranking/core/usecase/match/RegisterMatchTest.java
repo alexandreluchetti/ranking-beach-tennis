@@ -17,6 +17,13 @@ import com.beachtennis.ranking.core.support.DirectTransactionRunner;
 import com.beachtennis.ranking.core.support.InMemoryMatches;
 import com.beachtennis.ranking.core.support.InMemoryPlayers;
 import com.beachtennis.ranking.core.support.InMemorySeasons;
+import com.beachtennis.ranking.core.support.FixedAdministratorDirectory;
+import com.beachtennis.ranking.core.support.InMemoryNotifications;
+import com.beachtennis.ranking.core.domain.notification.DevicePlatform;
+import com.beachtennis.ranking.core.domain.notification.Notification;
+import com.beachtennis.ranking.core.usecase.notification.MatchNotificationComposer;
+import com.beachtennis.ranking.core.usecase.notification.MatchNotifier;
+import com.beachtennis.ranking.core.usecase.notification.PushDispatcher;
 import com.beachtennis.ranking.core.usecase.player.GetOrCreateCurrentPlayer;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -41,6 +48,7 @@ class RegisterMatchTest {
     private final InMemoryPlayers players = new InMemoryPlayers();
     private final InMemorySeasons seasons = new InMemorySeasons();
     private final InMemoryMatches matches = new InMemoryMatches();
+    private final InMemoryNotifications notifications = new InMemoryNotifications();
     private RegisterMatch useCase;
     private Player ana;
     private Player beto;
@@ -58,8 +66,28 @@ class RegisterMatchTest {
         Clock clock = Clock.fixed(NOW, ZoneOffset.UTC);
         MatchDetailsAssembler assembler = new MatchDetailsAssembler(seasons, players, new RankingEligibilityPolicy(),
                 new GamesPlusWinBonusScoringPolicy());
+        MatchNotifier notifier = new MatchNotifier(notifications, new FixedAdministratorDirectory(null),
+                new MatchNotificationComposer(), clock);
         useCase = new RegisterMatch(new GetOrCreateCurrentPlayer(players, clock), matches,
-                new MatchValidator(players), assembler, new DirectTransactionRunner(), clock);
+                new MatchValidator(players), assembler, notifier, new PushDispatcher(notifications, notifications),
+                new DirectTransactionRunner(), clock);
+    }
+
+    @Test
+    void registrationNotifiesRegisteredParticipantsOnceAndPushesToOthersOnly() {
+        notifications.save("ana-phone", ana.id(), DevicePlatform.ANDROID, NOW);
+        notifications.save("caio-phone", caio.id(), DevicePlatform.IOS, NOW);
+        List<Participant> withGuest = List.of(
+                Participant.player(Team.A, 1, ana.id()), Participant.player(Team.A, 2, beto.id()),
+                Participant.player(Team.B, 1, caio.id()), Participant.guest(Team.B, 2, null));
+        UUID id = UUID.randomUUID();
+
+        useCase.execute(caller, command(id, sixFour(), withGuest));
+        useCase.execute(caller, command(id, sixFour(), withGuest));
+
+        assertThat(notifications.all()).extracting(Notification::recipientId)
+                .containsExactlyInAnyOrder(ana.id(), beto.id(), caio.id());
+        assertThat(notifications.pushedTokens()).containsExactly("caio-phone");
     }
 
     @Test

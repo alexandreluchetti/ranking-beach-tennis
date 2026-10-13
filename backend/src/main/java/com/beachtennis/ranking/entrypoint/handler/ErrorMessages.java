@@ -39,7 +39,9 @@ final class ErrorMessages {
             Map.entry("MATCH_NOT_VOIDED", "Esta partida não está anulada."),
             Map.entry("MATCH_MODIFIED", "A partida foi alterada por outra operação. Atualize e tente novamente."),
             Map.entry("REASON_REQUIRED", "Informe a justificativa."),
-            Map.entry("REASON_TOO_LONG", "A justificativa deve ter no máximo 500 caracteres."));
+            Map.entry("REASON_TOO_LONG", "A justificativa deve ter no máximo 500 caracteres."),
+            Map.entry("NOTIFICATION_NOT_FOUND", "Notificação não encontrada."),
+            Map.entry("INVALID_DEVICE", "Dados do dispositivo inválidos."));
 
     private static final String FALLBACK = "Não foi possível concluir a operação.";
 

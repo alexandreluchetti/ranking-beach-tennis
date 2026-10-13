@@ -9,13 +9,19 @@ import com.beachtennis.ranking.core.domain.match.MatchStatus;
 import com.beachtennis.ranking.core.domain.match.Participant;
 import com.beachtennis.ranking.core.domain.match.Score;
 import com.beachtennis.ranking.core.domain.match.Team;
+import com.beachtennis.ranking.core.domain.notification.DevicePlatform;
 import com.beachtennis.ranking.core.exception.ConflictException;
 import com.beachtennis.ranking.core.exception.ForbiddenException;
 import com.beachtennis.ranking.core.exception.NotFoundException;
 import com.beachtennis.ranking.core.scoring.NotCountedReason;
 import com.beachtennis.ranking.core.stats.RankingEntry;
 import com.beachtennis.ranking.core.support.DirectTransactionRunner;
+import com.beachtennis.ranking.core.support.FixedAdministratorDirectory;
 import com.beachtennis.ranking.core.support.InMemoryMatchAudit;
+import com.beachtennis.ranking.core.support.InMemoryNotifications;
+import com.beachtennis.ranking.core.usecase.notification.MatchNotificationComposer;
+import com.beachtennis.ranking.core.usecase.notification.MatchNotifier;
+import com.beachtennis.ranking.core.usecase.notification.PushDispatcher;
 import com.beachtennis.ranking.core.usecase.match.MatchDetails;
 import com.beachtennis.ranking.core.usecase.match.MatchValidator;
 import com.beachtennis.ranking.core.usecase.player.GetOrCreateCurrentPlayer;
@@ -38,9 +44,13 @@ class MatchAdministrationTest {
     private final Player adminPlayer = world.players.add("Admin");
     private final AuthenticatedUser admin = new AuthenticatedUser(adminPlayer.identity(), null, "Admin", true);
     private final AuthenticatedUser regular = new AuthenticatedUser(world.ana.identity(), null, "Ana", false);
+    private final InMemoryNotifications notifications = new InMemoryNotifications();
     private final MatchAdministration administration = new MatchAdministration(
             new GetOrCreateCurrentPlayer(world.players, RankingFixture.CLOCK), world.matches, audit,
-            new MatchValidator(world.players), world.assembler, new DirectTransactionRunner(), RankingFixture.CLOCK);
+            new MatchValidator(world.players), world.assembler,
+            new MatchNotifier(notifications, new FixedAdministratorDirectory(adminPlayer.id()),
+                    new MatchNotificationComposer(), RankingFixture.CLOCK),
+            new PushDispatcher(notifications, notifications), new DirectTransactionRunner(), RankingFixture.CLOCK);
     private final GetSeasonRanking ranking = new GetSeasonRanking(world.querySeasons, world.matches, world.players,
             world.assembler);
 
@@ -197,6 +207,41 @@ class MatchAdministrationTest {
                 .isInstanceOf(ForbiddenException.class);
         assertThat(world.matches.findById(match.id()).orElseThrow()).isEqualTo(match);
         assertThat(audit.entries()).isEmpty();
+    }
+
+    @Test
+    void correctionNotifiesRemovedAndIncludedPlayersAndTheAdministrator() {
+        Player eva = world.players.add("Eva");
+        administration.correct(admin, correction(match.version(), match.score(), List.of(
+                Participant.player(Team.A, 1, world.ana.id()), Participant.player(Team.A, 2, world.beto.id()),
+                Participant.player(Team.B, 1, world.caio.id()), Participant.player(Team.B, 2, eva.id())), null));
+
+        assertThat(notifications.all()).extracting(n -> n.recipientId()).containsExactlyInAnyOrder(
+                world.ana.id(), world.beto.id(), world.caio.id(), world.dani.id(), eva.id(), adminPlayer.id());
+        assertThat(notifications.of(world.dani.id()).getFirst().body())
+                .contains("Você não faz mais parte desta partida.", "Seus pontos nesta partida: 4 → 0.");
+        assertThat(notifications.of(eva.id()).getFirst().body())
+                .contains("Você foi incluído nesta partida.", "Seus pontos nesta partida: 0 → 4.");
+        assertThat(notifications.of(world.ana.id()).getFirst().body())
+                .contains("duplas Ana e Beto x Caio e Dani → Ana e Beto x Caio e Eva", "9 → 9");
+    }
+
+    @Test
+    void voidAndRevertNotifyEveryTimeButNeverTwiceForTheSameEvent() {
+        notifications.save("ana-phone", world.ana.id(), DevicePlatform.ANDROID, RankingFixture.NOW);
+        notifications.save("admin-phone", adminPlayer.id(), DevicePlatform.IOS, RankingFixture.NOW);
+
+        administration.voidMatch(admin, match.id(), "Partida de treino");
+        administration.revertVoid(admin, match.id(), "Anulada por engano");
+
+        List<String> anaBodies = notifications.of(world.ana.id()).stream().map(n -> n.body()).toList();
+        assertThat(anaBodies).hasSize(2);
+        assertThat(anaBodies.get(0)).contains("foi anulada", "Motivo: Partida de treino.", "9 → 0");
+        assertThat(anaBodies.get(1)).contains("voltou a valer", "Motivo: Anulada por engano.", "0 → 9");
+        assertThat(notifications.of(adminPlayer.id())).hasSize(2);
+        // The administrator performed both actions: in-app record only, no push to their phone.
+        assertThat(notifications.pushedTokens()).containsExactly("ana-phone", "ana-phone");
+        assertThat(notifications.all()).hasSize(10);
     }
 
     @Test

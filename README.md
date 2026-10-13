@@ -45,6 +45,10 @@ Swagger UI: http://localhost:8080/swagger-ui.html
 | `ADMIN_AUTH_SUBJECT` | Firebase UID of the single administrator | empty (no admin) |
 | `DATABASE_URL` / `DATABASE_USERNAME` / `DATABASE_PASSWORD` | PostgreSQL connection | local docker-compose |
 | `API_DOCS_ENABLED` | Exposes Swagger / OpenAPI (disable in production) | `true` |
+| `PUSH_FCM_ENABLED` | Sends push notifications through Firebase Cloud Messaging | `false` |
+| `PUSH_FCM_CREDENTIALS_FILE` | Path to the Firebase service account key (JSON). Keep it outside the repository. | — |
+
+In-app notifications always work; push is an optional best-effort copy.
 
 #### Administrator recovery
 

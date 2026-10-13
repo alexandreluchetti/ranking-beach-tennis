@@ -7,10 +7,13 @@ import com.beachtennis.ranking.core.domain.match.Match;
 import com.beachtennis.ranking.core.domain.match.MatchStatus;
 import com.beachtennis.ranking.core.domain.match.Participant;
 import com.beachtennis.ranking.core.domain.match.Score;
+import com.beachtennis.ranking.core.domain.notification.Notification;
 import com.beachtennis.ranking.core.exception.ConflictException;
 import com.beachtennis.ranking.core.exception.PossibleDuplicateMatchException;
 import com.beachtennis.ranking.core.port.MatchRepository;
 import com.beachtennis.ranking.core.port.TransactionRunner;
+import com.beachtennis.ranking.core.usecase.notification.MatchNotifier;
+import com.beachtennis.ranking.core.usecase.notification.PushDispatcher;
 import com.beachtennis.ranking.core.usecase.player.GetOrCreateCurrentPlayer;
 
 import java.time.Clock;
@@ -48,6 +51,8 @@ public class RegisterMatch {
     private final MatchRepository matchRepository;
     private final MatchValidator validator;
     private final MatchDetailsAssembler assembler;
+    private final MatchNotifier notifier;
+    private final PushDispatcher pushDispatcher;
     private final TransactionRunner transactionRunner;
     private final Clock clock;
 
@@ -55,12 +60,16 @@ public class RegisterMatch {
                          MatchRepository matchRepository,
                          MatchValidator validator,
                          MatchDetailsAssembler assembler,
+                         MatchNotifier notifier,
+                         PushDispatcher pushDispatcher,
                          TransactionRunner transactionRunner,
                          Clock clock) {
         this.getOrCreateCurrentPlayer = getOrCreateCurrentPlayer;
         this.matchRepository = matchRepository;
         this.validator = validator;
         this.assembler = assembler;
+        this.notifier = notifier;
+        this.pushDispatcher = pushDispatcher;
         this.transactionRunner = transactionRunner;
         this.clock = clock;
     }
@@ -72,10 +81,12 @@ public class RegisterMatch {
         Match match = new Match(command.id(), command.playedAt(), command.score(), command.participants(),
                 MatchStatus.VALID, registeredBy.id(), now, now);
 
-        return transactionRunner.inTransaction(() -> {
+        record Outcome(Result result, List<Notification> notifications) {
+        }
+        Outcome outcome = transactionRunner.inTransaction(() -> {
             Match existing = matchRepository.findById(match.id()).orElse(null);
             if (existing != null) {
-                return idempotentResend(existing, match);
+                return new Outcome(idempotentResend(existing, match), List.of());
             }
             validator.validate(match, now);
             if (!command.confirmPossibleDuplicate()) {
@@ -83,10 +94,14 @@ public class RegisterMatch {
             }
             if (!matchRepository.insertIfAbsent(match)) {
                 // Lost a race against a concurrent resend of the same id.
-                return idempotentResend(matchRepository.findById(match.id()).orElseThrow(), match);
+                return new Outcome(idempotentResend(matchRepository.findById(match.id()).orElseThrow(), match),
+                        List.of());
             }
-            return new Result(assembler.assemble(match), true);
+            MatchDetails details = assembler.assemble(match);
+            return new Outcome(new Result(details, true), notifier.registered(details));
         });
+        pushDispatcher.dispatch(outcome.notifications(), registeredBy.id());
+        return outcome.result();
     }
 
     private Result idempotentResend(Match existing, Match requested) {

@@ -18,6 +18,10 @@ app:
   security:
     firebase-project-id: ${FIREBASE_PROJECT_ID:ranking-beach-tennis}
     admin-subject: ${ADMIN_AUTH_SUBJECT:}
+  push:
+    fcm:
+      enabled: ${PUSH_FCM_ENABLED:false}
+      credentials-file: ${PUSH_FCM_CREDENTIALS_FILE:}
 
 springdoc:
   api-docs:

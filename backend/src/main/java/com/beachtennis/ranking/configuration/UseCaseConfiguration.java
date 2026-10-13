@@ -1,6 +1,14 @@
 package com.beachtennis.ranking.configuration;
 
+import com.beachtennis.ranking.core.port.AdministratorDirectory;
+import com.beachtennis.ranking.core.port.DeviceTokenRepository;
 import com.beachtennis.ranking.core.port.MatchAuditLog;
+import com.beachtennis.ranking.core.port.NotificationRepository;
+import com.beachtennis.ranking.core.port.PushSender;
+import com.beachtennis.ranking.core.usecase.notification.MatchNotificationComposer;
+import com.beachtennis.ranking.core.usecase.notification.MatchNotifier;
+import com.beachtennis.ranking.core.usecase.notification.NotificationInbox;
+import com.beachtennis.ranking.core.usecase.notification.PushDispatcher;
 import com.beachtennis.ranking.core.port.MatchRepository;
 import com.beachtennis.ranking.core.port.PlayerRepository;
 import com.beachtennis.ranking.core.scoring.GamesPlusWinBonusScoringPolicy;
@@ -98,14 +106,36 @@ public class UseCaseConfiguration {
     }
 
     @Bean
+    MatchNotifier matchNotifier(NotificationRepository notificationRepository,
+                                AdministratorDirectory administratorDirectory,
+                                Clock clock) {
+        return new MatchNotifier(notificationRepository, administratorDirectory, new MatchNotificationComposer(), clock);
+    }
+
+    @Bean
+    PushDispatcher pushDispatcher(DeviceTokenRepository deviceTokenRepository, PushSender pushSender) {
+        return new PushDispatcher(deviceTokenRepository, pushSender);
+    }
+
+    @Bean
+    NotificationInbox notificationInbox(GetOrCreateCurrentPlayer getOrCreateCurrentPlayer,
+                                        NotificationRepository notificationRepository,
+                                        DeviceTokenRepository deviceTokenRepository,
+                                        Clock clock) {
+        return new NotificationInbox(getOrCreateCurrentPlayer, notificationRepository, deviceTokenRepository, clock);
+    }
+
+    @Bean
     RegisterMatch registerMatch(GetOrCreateCurrentPlayer getOrCreateCurrentPlayer,
                                 MatchRepository matchRepository,
                                 MatchValidator matchValidator,
                                 MatchDetailsAssembler matchDetailsAssembler,
+                                MatchNotifier matchNotifier,
+                                PushDispatcher pushDispatcher,
                                 TransactionRunner transactionRunner,
                                 Clock clock) {
         return new RegisterMatch(getOrCreateCurrentPlayer, matchRepository, matchValidator, matchDetailsAssembler,
-                transactionRunner, clock);
+                matchNotifier, pushDispatcher, transactionRunner, clock);
     }
 
     @Bean
@@ -120,10 +150,12 @@ public class UseCaseConfiguration {
                                             MatchAuditLog matchAuditLog,
                                             MatchValidator matchValidator,
                                             MatchDetailsAssembler matchDetailsAssembler,
+                                            MatchNotifier matchNotifier,
+                                            PushDispatcher pushDispatcher,
                                             TransactionRunner transactionRunner,
                                             Clock clock) {
         return new MatchAdministration(getOrCreateCurrentPlayer, matchRepository, matchAuditLog, matchValidator,
-                matchDetailsAssembler, transactionRunner, clock);
+                matchDetailsAssembler, matchNotifier, pushDispatcher, transactionRunner, clock);
     }
 
     @Bean

@@ -40,7 +40,8 @@ public abstract class IntegrationTest {
 
     @BeforeEach
     void cleanDatabase() {
-        jdbcTemplate.execute("truncate table match_audit, match_participant, match, season_audit, season, app_user cascade");
+        jdbcTemplate.execute("truncate table device_token, notification, match_audit, match_participant, match, season_audit,"
+                + " season, app_user cascade");
     }
 
     protected static RequestPostProcessor token(String subject, String name, String email) {

@@ -127,6 +127,11 @@ addition to the current participants (implemented with notifications, stage 6).
 - Every authenticated user can read a match's audit trail (transparency for participants).
 - If the administrator changed a match before its author's offline resend arrived, the resend
   returns the current state instead of failing.
+- Notifications: every recipient (registered participants, players removed by a correction and
+  the administrator) gets an in-app notification; the person who performed the action gets no
+  push about it. Notification text is written in pt-BR by the backend so in-app and push match.
+- Push is off until a Firebase service account key is configured; push to iPhones additionally
+  needs the Apple Developer account and an APNs key in Firebase.
 - Rankings and statistics are computed in Java from the matches, so the scoring formula exists
   in exactly one place (`GamesPlusWinBonusScoringPolicy`).
 

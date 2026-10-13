@@ -8,6 +8,7 @@ import com.beachtennis.ranking.core.domain.match.MatchAuditEntry;
 import com.beachtennis.ranking.core.domain.match.MatchStatus;
 import com.beachtennis.ranking.core.domain.match.Participant;
 import com.beachtennis.ranking.core.domain.match.Score;
+import com.beachtennis.ranking.core.domain.notification.Notification;
 import com.beachtennis.ranking.core.exception.ConflictException;
 import com.beachtennis.ranking.core.exception.ForbiddenException;
 import com.beachtennis.ranking.core.exception.NotFoundException;
@@ -18,6 +19,8 @@ import com.beachtennis.ranking.core.port.TransactionRunner;
 import com.beachtennis.ranking.core.usecase.match.MatchDetails;
 import com.beachtennis.ranking.core.usecase.match.MatchDetailsAssembler;
 import com.beachtennis.ranking.core.usecase.match.MatchValidator;
+import com.beachtennis.ranking.core.usecase.notification.MatchNotifier;
+import com.beachtennis.ranking.core.usecase.notification.PushDispatcher;
 import com.beachtennis.ranking.core.usecase.player.GetOrCreateCurrentPlayer;
 
 import java.time.Clock;
@@ -55,6 +58,8 @@ public class MatchAdministration {
     private final MatchAuditLog auditLog;
     private final MatchValidator validator;
     private final MatchDetailsAssembler assembler;
+    private final MatchNotifier notifier;
+    private final PushDispatcher pushDispatcher;
     private final TransactionRunner transactionRunner;
     private final Clock clock;
 
@@ -63,6 +68,8 @@ public class MatchAdministration {
                                MatchAuditLog auditLog,
                                MatchValidator validator,
                                MatchDetailsAssembler assembler,
+                               MatchNotifier notifier,
+                               PushDispatcher pushDispatcher,
                                TransactionRunner transactionRunner,
                                Clock clock) {
         this.getOrCreateCurrentPlayer = getOrCreateCurrentPlayer;
@@ -70,6 +77,8 @@ public class MatchAdministration {
         this.auditLog = auditLog;
         this.validator = validator;
         this.assembler = assembler;
+        this.notifier = notifier;
+        this.pushDispatcher = pushDispatcher;
         this.transactionRunner = transactionRunner;
         this.clock = clock;
     }
@@ -123,16 +132,22 @@ public class MatchAdministration {
         }
         Player admin = getOrCreateCurrentPlayer.execute(user);
         Instant now = clock.instant();
-        return transactionRunner.inTransaction(() -> {
+        record Result(Outcome outcome, List<Notification> notifications) {
+        }
+        Result result = transactionRunner.inTransaction(() -> {
             Match current = matchRepository.findById(matchId)
                     .orElseThrow(() -> new NotFoundException("MATCH_NOT_FOUND"));
             Match next = change.apply(current, now, admin.id());
             if (next == current) {
-                return new Outcome(assembler.assemble(current), null, action);
+                return new Result(new Outcome(assembler.assemble(current), null, action), List.of());
             }
             Match saved = matchRepository.update(next);
             auditLog.record(new MatchAuditEntry(matchId, action, admin.id(), now, reason, current, saved));
-            return new Outcome(assembler.assemble(saved), current, action);
+            List<MatchDetails> details = assembler.assembleAll(List.of(current, saved));
+            List<Notification> notifications = notifier.changed(action, details.get(0), details.get(1), reason);
+            return new Result(new Outcome(details.get(1), current, action), notifications);
         });
+        pushDispatcher.dispatch(result.notifications(), admin.id());
+        return result.outcome();
     }
 }
