@@ -7,7 +7,10 @@ import com.beachtennis.ranking.core.port.PlayerRepository;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.util.Collection;
+import java.util.List;
 import java.util.Optional;
+import java.util.UUID;
 
 @Component
 public class PlayerRepositoryAdapter implements PlayerRepository {
@@ -23,6 +26,15 @@ public class PlayerRepositoryAdapter implements PlayerRepository {
     public Optional<Player> findByIdentity(AuthIdentity identity) {
         return jpaRepository.findByAuthProviderAndAuthSubject(identity.provider(), identity.subject())
                 .map(PlayerRepositoryAdapter::toDomain);
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public List<Player> findAllByIds(Collection<UUID> ids) {
+        if (ids.isEmpty()) {
+            return List.of();
+        }
+        return jpaRepository.findAllById(ids).stream().map(PlayerRepositoryAdapter::toDomain).toList();
     }
 
     @Override

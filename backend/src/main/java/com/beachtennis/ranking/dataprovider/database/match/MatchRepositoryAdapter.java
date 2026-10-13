@@ -1,0 +1,164 @@
+package com.beachtennis.ranking.dataprovider.database.match;
+
+import com.beachtennis.ranking.core.domain.match.Match;
+import com.beachtennis.ranking.core.domain.match.MatchFormat;
+import com.beachtennis.ranking.core.domain.match.MatchStatus;
+import com.beachtennis.ranking.core.domain.match.Participant;
+import com.beachtennis.ranking.core.domain.match.Score;
+import com.beachtennis.ranking.core.domain.match.Team;
+import com.beachtennis.ranking.core.port.MatchRepository;
+import org.springframework.jdbc.core.simple.JdbcClient;
+import org.springframework.stereotype.Component;
+import org.springframework.transaction.annotation.Transactional;
+
+import java.sql.ResultSet;
+import java.sql.SQLException;
+import java.time.Instant;
+import java.time.OffsetDateTime;
+import java.time.ZoneOffset;
+import java.util.ArrayList;
+import java.util.Collection;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.Optional;
+import java.util.UUID;
+
+/**
+ * Plain SQL persistence for the match aggregate (match + four participants).
+ */
+@Component
+public class MatchRepositoryAdapter implements MatchRepository {
+
+    private static final String SELECT_MATCH = """
+            select id, played_at, format, team_a_games, team_b_games, tiebreak_team_a_points,
+                   tiebreak_team_b_points, status, registered_by, registered_at, updated_at
+            from match
+            """;
+
+    private final JdbcClient jdbcClient;
+
+    public MatchRepositoryAdapter(JdbcClient jdbcClient) {
+        this.jdbcClient = jdbcClient;
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public Optional<Match> findById(UUID id) {
+        List<MatchRow> rows = jdbcClient.sql(SELECT_MATCH + " where id = :id")
+                .param("id", id)
+                .query(MatchRepositoryAdapter::mapRow)
+                .list();
+        return assemble(rows).stream().findFirst();
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public List<Match> findValidPlayedBetween(Instant from, Instant to) {
+        List<MatchRow> rows = jdbcClient.sql(SELECT_MATCH
+                        + " where status = 'VALID' and played_at >= :from and played_at < :to order by played_at")
+                .param("from", utc(from))
+                .param("to", utc(to))
+                .query(MatchRepositoryAdapter::mapRow)
+                .list();
+        return assemble(rows);
+    }
+
+    @Override
+    @Transactional
+    public boolean insertIfAbsent(Match match) {
+        int inserted = jdbcClient.sql("""
+                        insert into match (id, played_at, format, team_a_games, team_b_games,
+                                           tiebreak_team_a_points, tiebreak_team_b_points, status,
+                                           registered_by, registered_at, updated_at)
+                        values (:id, :playedAt, :format, :teamAGames, :teamBGames, :tiebreakA, :tiebreakB,
+                                :status, :registeredBy, :registeredAt, :updatedAt)
+                        on conflict (id) do nothing
+                        """)
+                .param("id", match.id())
+                .param("playedAt", utc(match.playedAt()))
+                .param("format", match.format().name())
+                .param("teamAGames", match.score().teamAGames())
+                .param("teamBGames", match.score().teamBGames())
+                .param("tiebreakA", match.score().tiebreakTeamAPoints())
+                .param("tiebreakB", match.score().tiebreakTeamBPoints())
+                .param("status", match.status().name())
+                .param("registeredBy", match.registeredBy())
+                .param("registeredAt", utc(match.registeredAt()))
+                .param("updatedAt", utc(match.updatedAt()))
+                .update();
+        if (inserted == 0) {
+            return false;
+        }
+        for (Participant p : match.participants()) {
+            jdbcClient.sql("""
+                            insert into match_participant (match_id, team, slot, player_id, guest_name)
+                            values (:matchId, :team, :slot, :playerId, :guestName)
+                            """)
+                    .param("matchId", match.id())
+                    .param("team", p.team().name())
+                    .param("slot", p.slot())
+                    .param("playerId", p.playerId())
+                    .param("guestName", p.guestName())
+                    .update();
+        }
+        return true;
+    }
+
+    private List<Match> assemble(List<MatchRow> rows) {
+        if (rows.isEmpty()) {
+            return List.of();
+        }
+        Map<UUID, List<Participant>> participants = participantsOf(rows.stream().map(MatchRow::id).toList());
+        List<Match> matches = new ArrayList<>(rows.size());
+        for (MatchRow row : rows) {
+            matches.add(new Match(row.id(), row.playedAt(), row.score(), participants.get(row.id()), row.status(),
+                    row.registeredBy(), row.registeredAt(), row.updatedAt()));
+        }
+        return matches;
+    }
+
+    private Map<UUID, List<Participant>> participantsOf(Collection<UUID> matchIds) {
+        Map<UUID, List<Participant>> result = new HashMap<>();
+        jdbcClient.sql("""
+                        select match_id, team, slot, player_id, guest_name
+                        from match_participant where match_id in (:ids)
+                        """)
+                .param("ids", matchIds)
+                .query(rs -> {
+                    result.computeIfAbsent(rs.getObject("match_id", UUID.class), k -> new ArrayList<>())
+                            .add(new Participant(Team.valueOf(rs.getString("team")), rs.getInt("slot"),
+                                    rs.getObject("player_id", UUID.class), rs.getString("guest_name")));
+                });
+        return result;
+    }
+
+    private static MatchRow mapRow(ResultSet rs, int rowNum) throws SQLException {
+        Score score = new Score(
+                MatchFormat.valueOf(rs.getString("format")),
+                rs.getInt("team_a_games"),
+                rs.getInt("team_b_games"),
+                rs.getObject("tiebreak_team_a_points", Integer.class),
+                rs.getObject("tiebreak_team_b_points", Integer.class));
+        return new MatchRow(
+                rs.getObject("id", UUID.class),
+                instant(rs, "played_at"),
+                score,
+                MatchStatus.valueOf(rs.getString("status")),
+                rs.getObject("registered_by", UUID.class),
+                instant(rs, "registered_at"),
+                instant(rs, "updated_at"));
+    }
+
+    private static Instant instant(ResultSet rs, String column) throws SQLException {
+        return rs.getObject(column, OffsetDateTime.class).toInstant();
+    }
+
+    private static OffsetDateTime utc(Instant instant) {
+        return OffsetDateTime.ofInstant(instant, ZoneOffset.UTC);
+    }
+
+    private record MatchRow(UUID id, Instant playedAt, Score score, MatchStatus status, UUID registeredBy,
+                            Instant registeredAt, Instant updatedAt) {
+    }
+}

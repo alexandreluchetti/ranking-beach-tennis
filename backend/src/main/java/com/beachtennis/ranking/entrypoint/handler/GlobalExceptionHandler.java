@@ -4,6 +4,9 @@ import com.beachtennis.ranking.core.exception.BusinessException;
 import com.beachtennis.ranking.core.exception.ConflictException;
 import com.beachtennis.ranking.core.exception.ForbiddenException;
 import com.beachtennis.ranking.core.exception.NotFoundException;
+import com.beachtennis.ranking.core.exception.PossibleDuplicateMatchException;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ProblemDetail;
 import org.springframework.http.converter.HttpMessageNotReadableException;
@@ -19,9 +22,15 @@ import org.springframework.web.method.annotation.MethodArgumentTypeMismatchExcep
 @RestControllerAdvice
 public class GlobalExceptionHandler {
 
+    private static final Logger log = LoggerFactory.getLogger(GlobalExceptionHandler.class);
+
     @ExceptionHandler(BusinessException.class)
     ProblemDetail handleBusiness(BusinessException exception) {
-        return problem(statusOf(exception), exception.code());
+        ProblemDetail problem = problem(statusOf(exception), exception.code());
+        if (exception instanceof PossibleDuplicateMatchException duplicate) {
+            problem.setProperty("existingMatchIds", duplicate.existingMatchIds());
+        }
+        return problem;
     }
 
     @ExceptionHandler({
@@ -29,6 +38,7 @@ public class GlobalExceptionHandler {
             HttpMessageNotReadableException.class,
             MethodArgumentTypeMismatchException.class})
     ProblemDetail handleInvalidRequest(Exception exception) {
+        log.info("Rejected malformed request: {}", exception.getMessage());
         return problem(HttpStatus.BAD_REQUEST, ErrorMessages.INVALID_REQUEST);
     }
 

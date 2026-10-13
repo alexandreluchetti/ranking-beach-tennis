@@ -19,7 +19,20 @@ final class ErrorMessages {
             Map.entry("SEASON_OVERLAP", "O período informado se sobrepõe ao de outra temporada."),
             Map.entry("SEASON_CLOSED", "Temporadas encerradas não podem ser alteradas."),
             Map.entry("SEASON_START_LOCKED", "A data de início de uma temporada em andamento não pode ser alterada."),
-            Map.entry("SEASON_NOT_FOUND", "Temporada não encontrada."));
+            Map.entry("SEASON_NOT_FOUND", "Temporada não encontrada."),
+            Map.entry("INVALID_SCORE", "Placar inválido para o formato escolhido."),
+            Map.entry("INVALID_TIEBREAK",
+                    "Placar do tie-break inválido: informe-o apenas em 7–6 ou 5–4, com vitória da dupla vencedora."),
+            Map.entry("INVALID_PARTICIPANTS", "Informe dois participantes em cada dupla."),
+            Map.entry("DUPLICATE_PARTICIPANT", "A mesma pessoa não pode ocupar duas posições na partida."),
+            Map.entry("INVALID_GUEST_NAME", "O nome do convidado deve ter no máximo 40 caracteres."),
+            Map.entry("UNKNOWN_PLAYER", "Um dos jogadores informados não está cadastrado."),
+            Map.entry("INVALID_MATCH_DATE", "Informe a data e a hora da partida."),
+            Map.entry("MATCH_IN_FUTURE", "A data da partida não pode estar no futuro."),
+            Map.entry("MATCH_ID_CONFLICT", "Já existe outra partida registrada com este identificador."),
+            Map.entry("POSSIBLE_DUPLICATE_MATCH",
+                    "Já existe uma partida com as mesmas duplas neste dia. Confirme se é uma nova partida."),
+            Map.entry("MATCH_NOT_FOUND", "Partida não encontrada."));
 
     private static final String FALLBACK = "Não foi possível concluir a operação.";
 

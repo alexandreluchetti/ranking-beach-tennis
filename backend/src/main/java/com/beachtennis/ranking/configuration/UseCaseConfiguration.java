@@ -1,6 +1,13 @@
 package com.beachtennis.ranking.configuration;
 
+import com.beachtennis.ranking.core.port.MatchRepository;
 import com.beachtennis.ranking.core.port.PlayerRepository;
+import com.beachtennis.ranking.core.scoring.GamesPlusWinBonusScoringPolicy;
+import com.beachtennis.ranking.core.scoring.RankingEligibilityPolicy;
+import com.beachtennis.ranking.core.scoring.ScoringPolicy;
+import com.beachtennis.ranking.core.usecase.match.MatchDetailsAssembler;
+import com.beachtennis.ranking.core.usecase.match.QueryMatch;
+import com.beachtennis.ranking.core.usecase.match.RegisterMatch;
 import com.beachtennis.ranking.core.port.SeasonAuditLog;
 import com.beachtennis.ranking.core.port.SeasonRepository;
 import com.beachtennis.ranking.core.port.TransactionRunner;
@@ -58,5 +65,39 @@ public class UseCaseConfiguration {
     @Bean
     QuerySeasons querySeasons(SeasonRepository seasonRepository, Clock clock) {
         return new QuerySeasons(seasonRepository, clock);
+    }
+
+    @Bean
+    ScoringPolicy scoringPolicy() {
+        return new GamesPlusWinBonusScoringPolicy();
+    }
+
+    @Bean
+    RankingEligibilityPolicy rankingEligibilityPolicy() {
+        return new RankingEligibilityPolicy();
+    }
+
+    @Bean
+    MatchDetailsAssembler matchDetailsAssembler(SeasonRepository seasonRepository,
+                                                PlayerRepository playerRepository,
+                                                RankingEligibilityPolicy rankingEligibilityPolicy,
+                                                ScoringPolicy scoringPolicy) {
+        return new MatchDetailsAssembler(seasonRepository, playerRepository, rankingEligibilityPolicy, scoringPolicy);
+    }
+
+    @Bean
+    RegisterMatch registerMatch(GetOrCreateCurrentPlayer getOrCreateCurrentPlayer,
+                                MatchRepository matchRepository,
+                                PlayerRepository playerRepository,
+                                MatchDetailsAssembler matchDetailsAssembler,
+                                TransactionRunner transactionRunner,
+                                Clock clock) {
+        return new RegisterMatch(getOrCreateCurrentPlayer, matchRepository, playerRepository, matchDetailsAssembler,
+                transactionRunner, clock);
+    }
+
+    @Bean
+    QueryMatch queryMatch(MatchRepository matchRepository, MatchDetailsAssembler matchDetailsAssembler) {
+        return new QueryMatch(matchRepository, matchDetailsAssembler);
     }
 }
