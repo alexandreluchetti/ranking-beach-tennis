@@ -22,8 +22,8 @@ class HealthApiIT extends IntegrationTest {
     void otherActuatorEndpointsAreNotExposed() throws Exception {
         mockMvc.perform(get("/actuator/env").with(adminToken()))
                 .andExpect(status().isNotFound());
-        mockMvc.perform(get("/actuator/info"))
-                .andExpect(status().isUnauthorized());
+        mockMvc.perform(get("/actuator/metrics").with(adminToken()))
+                .andExpect(status().isNotFound());
         mockMvc.perform(get("/actuator").with(userToken()))
                 .andExpect(jsonPath("$._links.env").doesNotExist());
     }
