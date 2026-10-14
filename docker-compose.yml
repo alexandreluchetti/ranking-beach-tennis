@@ -1,13 +1,17 @@
-# Two ways to use this file (values come from .env — copy .env.example):
+# Three ways to use this file (values come from .env — copy .env.example):
 #
-#   Local development (database only; run the API with ./mvnw spring-boot:run):
+#   Local database only (run the API from the IDE or with ./mvnw spring-boot:run):
 #     docker compose up -d
+#
+#   Local database + API in a container, on http://localhost:8080:
+#     docker compose --profile local up -d --build
 #
 #   Server (database + API + HTTPS proxy + daily backups):
 #     docker compose --profile prod up -d --build
 #
-# Only the proxy publishes ports to the internet (80/443). PostgreSQL is bound to the
-# server's loopback interface and the API is reachable only through the proxy.
+# Only the proxy publishes ports to the internet (80/443). PostgreSQL and the API are bound
+# to the loopback interface; on the server the API is reachable from outside only through
+# the proxy.
 
 name: ranking-beach-tennis
 
@@ -33,7 +37,7 @@ services:
     mem_limit: 512m
 
   backend:
-    profiles: [prod]
+    profiles: [local, prod]
     build: .
     image: ranking-beach-tennis:latest
     container_name: ranking-beach-tennis-api
@@ -54,6 +58,8 @@ services:
       PUSH_FCM_CREDENTIALS_FILE: /run/secrets/firebase-service-account.json
     volumes:
       - ./secrets:/run/secrets:ro
+    ports:
+      - "127.0.0.1:${API_PORT:-8080}:8080"
     mem_limit: 768m
 
   caddy:
