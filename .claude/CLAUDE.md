@@ -14,6 +14,14 @@ PostgreSQL, Flyway. O app Flutter vive em repositório separado
   principais e o resultado real de `./mvnw verify`, e aguarde aprovação antes de avançar.
 - Nunca afirme que testes passaram sem executá-los.
 - Commits somente quando o usuário pedir.
+- **Fluxo de branches obrigatório** (detalhes em [`CONTRIBUTING.md`](../CONTRIBUTING.md)):
+  - `main` = produção (tag `vX.Y.Z` a cada release, versão do `pom.xml`); `dev` = integração.
+  - **Nunca commitar direto em `dev` ou `main`.** Toda mudança nasce de uma branch
+    `feat/`, `fix/`, `refactor/` ou `chore/<nome-em-kebab-case>` criada a partir da `dev`
+    atualizada, vai para a `dev` por pull request e é apagada depois do merge.
+  - A `main` só recebe pull request vindo da `dev` (check `source-branch-is-dev`).
+  - Antes de commitar, confira a branch atual (`git branch --show-current`); se estiver em
+    `dev` ou `main`, crie a branch de trabalho primeiro.
 - Idiomas:
   - Conversa com o usuário: **pt-BR**.
   - Código, nomes, comentários, documentação técnica e **mensagens de commit: inglês**
@@ -58,10 +66,14 @@ Regras:
 ## Desenvolvimento local
 
 ```bash
-docker compose up -d          # sobe o PostgreSQL
-./mvnw verify                 # compila + testes unitários + ITs (requer Docker)
-./mvnw spring-boot:run        # sobe a API em localhost:8080
+docker compose up -d                        # sobe só o PostgreSQL
+docker compose --profile local up -d --build  # PostgreSQL + API em container (localhost:8080)
+./mvnw verify                               # compila + testes unitários + ITs (requer Docker)
+./mvnw spring-boot:run                      # alternativa: API pelo Maven em localhost:8080
 ```
+
+O profile `local` lê a configuração do `.env` (no `.env` local: `ADMIN_AUTH_SUBJECT` com o UID
+do usuário, `API_DOCS_ENABLED=true`, `CORS_ALLOWED_ORIGINS=http://localhost:5000`).
 
 No Windows, use `.\mvnw.cmd` com `JAVA_HOME=C:\Users\luche\.jdks\corretto-25.0.4.1`
 (o `java` do PATH é o 21). O `.env` é obrigatório (copie de `.env.example`).
