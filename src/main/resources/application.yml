@@ -26,15 +26,21 @@ app:
       enabled: ${PUSH_FCM_ENABLED:false}
       credentials-file: ${PUSH_FCM_CREDENTIALS_FILE:}
 
-# Only the health status (UP/DOWN, no details) is exposed, for the container and proxy checks.
+# Public actuator endpoints: health status (UP/DOWN, no details) for the container and proxy
+# checks, and info with the build version and time only (shown in the app's "Sobre o app").
 management:
   endpoints:
     web:
       exposure:
-        include: health
+        include: health,info
   endpoint:
     health:
       show-details: never
+  info:
+    defaults:
+      enabled: false
+    build:
+      enabled: true
 
 springdoc:
   api-docs:

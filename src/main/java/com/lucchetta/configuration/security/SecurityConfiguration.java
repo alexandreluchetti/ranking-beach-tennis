@@ -32,7 +32,7 @@ public class SecurityConfiguration {
                 .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
                 .authorizeHttpRequests(auth -> auth
                         .requestMatchers("/v3/api-docs/**", "/swagger-ui/**", "/swagger-ui.html").permitAll()
-                        .requestMatchers("/actuator/health").permitAll()
+                        .requestMatchers("/actuator/health", "/actuator/info").permitAll()
                         .requestMatchers("/api/admin/**").hasRole("ADMIN")
                         .anyRequest().authenticated())
                 .oauth2ResourceServer(oauth2 -> oauth2
@@ -41,20 +41,27 @@ public class SecurityConfiguration {
     }
 
     /**
-     * Cross-origin access for the web app, restricted to {@code /api/**} and the configured origins.
-     * No credentials: browsers send the Firebase token in the Authorization header, never cookies.
+     * Cross-origin access for the web app, restricted to {@code /api/**} and the build info (read
+     * only), for the configured origins. No credentials: browsers send the Firebase token in the
+     * Authorization header, never cookies.
      */
     @Bean
     CorsConfigurationSource corsConfigurationSource(CorsProperties properties) {
+        UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
+        source.registerCorsConfiguration("/api/**",
+                cors(properties, List.of("GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS")));
+        source.registerCorsConfiguration("/actuator/info", cors(properties, List.of("GET", "OPTIONS")));
+        return source;
+    }
+
+    private static CorsConfiguration cors(CorsProperties properties, List<String> methods) {
         CorsConfiguration configuration = new CorsConfiguration();
         configuration.setAllowedOrigins(properties.allowedOrigins());
-        configuration.setAllowedMethods(List.of("GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"));
+        configuration.setAllowedMethods(methods);
         configuration.setAllowedHeaders(List.of("Authorization", "Content-Type"));
         configuration.setAllowCredentials(false);
         configuration.setMaxAge(Duration.ofHours(1));
-        UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
-        source.registerCorsConfiguration("/api/**", configuration);
-        return source;
+        return configuration;
     }
 
     @Bean

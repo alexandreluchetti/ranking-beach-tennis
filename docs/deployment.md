@@ -139,4 +139,5 @@ docker compose --profile prod start backend
 
 - Logs: `docker compose --profile prod logs -f backend` (also `caddy`, `db-backup`).
 - Health: `https://$DOMAIN/actuator/health` (status only, no details).
+- Version: `https://$DOMAIN/actuator/info` (public, `{"build":{"version":"X.Y.Z","time":"..."}}` only).
 - Database shell: `docker compose exec postgres psql -U ranking -d ranking`.
