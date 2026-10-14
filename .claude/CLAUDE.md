@@ -20,6 +20,8 @@ PostgreSQL, Flyway. O app Flutter vive em repositório separado
     `feat/`, `fix/`, `refactor/` ou `chore/<nome-em-kebab-case>` criada a partir da `dev`
     atualizada, vai para a `dev` por pull request e é apagada depois do merge.
   - A `main` só recebe pull request vindo da `dev` (check `source-branch-is-dev`).
+  - Logo depois de todo merge na `main`, sincronize a `dev` com um PR `main` → `dev`
+    (merge commit); `git log origin/dev..origin/main` deve ficar vazio.
   - Antes de commitar, confira a branch atual (`git branch --show-current`); se estiver em
     `dev` ou `main`, crie a branch de trabalho primeiro.
 - Idiomas:

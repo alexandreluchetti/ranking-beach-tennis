@@ -61,6 +61,19 @@ Work branch names are lowercase kebab-case in English, e.g. `feat/player-deactiv
    git push origin vX.Y.Z
    ```
 
+6. Sync `dev` with `main` right after every merge into `main`, so that `dev` always starts from
+   what is in production. `dev` is protected, so this is a pull request from `main` into `dev`
+   (merge commit; it brings no content changes):
+
+   ```bash
+   gh pr create --base dev --head main --title "Sync dev with main" --body "Sync after release."
+   gh pr merge --merge <number>
+   git switch dev
+   git pull
+   ```
+
+   Afterwards `git log origin/dev..origin/main` must be empty.
+
 Never commit directly to `dev` or `main`. `main` only accepts pull requests from `dev`: the
 `source-branch-is-dev` check (`.github/workflows/main-only-from-dev.yml`) fails for any other
 source branch. The server only runs `main` (or a release tag), never `dev` or a work branch.
