@@ -61,18 +61,22 @@ Work branch names are lowercase kebab-case in English, e.g. `feat/player-deactiv
    git push origin vX.Y.Z
    ```
 
-6. Sync `dev` with `main` right after every merge into `main`, so that `dev` always starts from
-   what is in production. `dev` is protected, so this is a pull request from `main` into `dev`
-   (merge commit; it brings no content changes):
+6. `dev` is synced with `main` automatically: after every merge into `main`, the
+   `sync-dev-with-main` workflow (`.github/workflows/sync-dev-with-main.yml`) opens a pull
+   request from `main` into `dev` and merges it (merge commit; no content changes). Afterwards
+   `git log origin/dev..origin/main` must be empty; then update your local `dev`:
 
    ```bash
-   gh pr create --base dev --head main --title "Sync dev with main" --body "Sync after release."
-   gh pr merge --merge <number>
    git switch dev
    git pull
    ```
 
-   Afterwards `git log origin/dev..origin/main` must be empty.
+   If the workflow fails, sync by hand:
+
+   ```bash
+   gh pr create --base dev --head main --title "Sync dev with main" --body "Sync after release."
+   gh pr merge --merge <number>
+   ```
 
 Never commit directly to `dev` or `main`. `main` only accepts pull requests from `dev`: the
 `source-branch-is-dev` check (`.github/workflows/main-only-from-dev.yml`) fails for any other
@@ -89,3 +93,5 @@ Branch protection needs a public repository or GitHub Pro.
   check `source-branch-is-dev`. The check can be selected only after it has run once, in a
   `dev` → `main` pull request.
 - "Automatically delete head branches" on, so merged work branches are removed from GitHub.
+- Settings → Actions → General → Workflow permissions: "Allow GitHub Actions to create and
+  approve pull requests" on, required by `sync-dev-with-main`.
