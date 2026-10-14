@@ -5,7 +5,7 @@ Everything runs on one Linux server from `docker-compose.yml` with the `prod` pr
 | Service | Role | Exposed |
 |---|---|---|
 | `caddy` | HTTPS reverse proxy, automatic Let's Encrypt certificates | 80, 443 |
-| `backend` | Spring Boot API (built from `Dockerfile`) | only to `caddy` |
+| `backend` | Spring Boot API (built from `Dockerfile`) | to `caddy`, and on the server loopback (`127.0.0.1:8080`) |
 | `postgres` | PostgreSQL 17, data in the `postgres-data` volume | server loopback only |
 | `db-backup` | Daily `pg_dump` into `./backups`, kept `BACKUP_KEEP_DAYS` days | — |
 

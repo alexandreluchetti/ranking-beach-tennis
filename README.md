@@ -14,7 +14,8 @@ Single Maven project, Clean Architecture by package under `com.lucchetta`:
 | `entrypoint` | REST controllers, DTOs, input validation, error handling. |
 | `configuration` | Wiring of use cases, security, OpenAPI, push. |
 
-Business decisions are recorded in the [decision log](docs/decisions.md).
+Business decisions are recorded in the [decision log](docs/decisions.md). Branches, pull
+requests and releases follow [CONTRIBUTING.md](CONTRIBUTING.md).
 
 ## Local development
 
@@ -37,11 +38,20 @@ Testcontainers; Docker must be running):
 ./mvnw verify
 ```
 
-Run the API:
+Run the API in a container together with the database (rebuilds the image from the current
+code; `ADMIN_AUTH_SUBJECT`, `CORS_ALLOWED_ORIGINS` and the other settings come from `.env`):
+
+```bash
+docker compose --profile local up -d --build
+```
+
+Or run it from the IDE / Maven against the local database (`docker compose up -d`):
 
 ```bash
 ./mvnw spring-boot:run
 ```
+
+The API listens on `http://localhost:8080` (loopback only) either way.
 
 Swagger UI: http://localhost:8080/swagger-ui.html
 
