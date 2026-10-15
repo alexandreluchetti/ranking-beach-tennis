@@ -148,7 +148,7 @@ class MatchApiIT extends IntegrationTest {
         register(body(UUID.randomUUID().toString(), 6, 4, player(ana), player(UUID.randomUUID().toString()),
                 player(caio), player(dani), false))
                 .andExpect(status().isBadRequest())
-                .andExpect(jsonPath("$.code").value("UNKNOWN_PLAYER"));
+                .andExpect(jsonPath("$.code").value("PLAYER_NOT_LEAGUE_MEMBER"));
         register(body(UUID.randomUUID().toString(), 6, 4, player(ana), "{\"playerId\": \"" + beto + "\", \"guest\": true}",
                 player(caio), player(dani), false))
                 .andExpect(status().isBadRequest())
@@ -203,7 +203,9 @@ class MatchApiIT extends IntegrationTest {
         return name == null ? "{\"guest\": true}" : "{\"guest\": true, \"guestName\": \"" + name + "\"}";
     }
 
+    /** Signs in (app before leagues): any endpoint without a league joins the "Beach Tennis Arena". */
     private String playerId(String uid, String name) throws Exception {
+        mockMvc.perform(get("/api/seasons").with(token(uid, name, null))).andExpect(status().isOk());
         return JsonPath.read(mockMvc.perform(get("/api/me").with(token(uid, name, null)))
                 .andReturn().getResponse().getContentAsString(), "$.id");
     }

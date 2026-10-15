@@ -6,12 +6,16 @@ import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
 import java.time.Instant;
+import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 
 interface PlayerJpaRepository extends JpaRepository<PlayerEntity, UUID> {
 
     Optional<PlayerEntity> findByAuthProviderAndAuthSubject(String authProvider, String authSubject);
+
+    @Query("select p from PlayerEntity p where lower(p.email) = lower(:email)")
+    List<PlayerEntity> findByEmailIgnoringCase(@Param("email") String email);
 
     @Modifying
     @Query(value = """

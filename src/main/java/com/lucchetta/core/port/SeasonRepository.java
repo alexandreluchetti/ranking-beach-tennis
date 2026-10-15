@@ -9,26 +9,29 @@ import java.util.UUID;
 
 public interface SeasonRepository {
 
-    /** All seasons, most recent start date first. */
-    List<Season> findAll();
+    /** Seasons of the league, most recent start date first. */
+    List<Season> findAll(UUID leagueId);
 
     Optional<Season> findById(UUID id);
 
-    /** The season whose period contains the given date, if any. */
-    Optional<Season> findContaining(LocalDate date);
+    /** The league's season whose period contains the given date, if any. */
+    Optional<Season> findContaining(UUID leagueId, LocalDate date);
 
-    /** Whether any season other than {@code excludedId} overlaps the given inclusive period. */
-    boolean existsOverlapping(LocalDate startDate, LocalDate endDate, UUID excludedId);
+    /**
+     * Whether any season of the league other than {@code excludedId} overlaps the given inclusive
+     * period.
+     */
+    boolean existsOverlapping(UUID leagueId, LocalDate startDate, LocalDate endDate, UUID excludedId);
 
     /**
      * @throws com.lucchetta.core.exception.ConflictException if the period overlaps
-     *                                                                   another season
+     *                                                                   another season of the league
      */
     Season insert(Season season);
 
     /**
      * @throws com.lucchetta.core.exception.ConflictException if the period overlaps
-     *                                                                   another season
+     *                                                                   another season of the league
      */
     Season update(Season season);
 }

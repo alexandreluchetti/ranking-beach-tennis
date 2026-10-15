@@ -1,7 +1,8 @@
 # ranking-beach-tennis
 
-Backend of the individual ranking app for a group of friends who play beach tennis: Spring Boot
-API (Java 25, PostgreSQL, Flyway). The Flutter app lives in its own, independent repository.
+Backend of the beach tennis ranking app: users create or join leagues, each with its own seasons,
+matches and individual ranking. Spring Boot API (Java 25, PostgreSQL, Flyway). The Flutter app
+lives in its own, independent repository.
 
 ## Structure
 
@@ -14,8 +15,9 @@ Single Maven project, Clean Architecture by package under `com.lucchetta`:
 | `entrypoint` | REST controllers, DTOs, input validation, error handling. |
 | `configuration` | Wiring of use cases, security, OpenAPI, push. |
 
-Business decisions are recorded in the [decision log](docs/decisions.md). Branches, pull
-requests and releases follow [CONTRIBUTING.md](CONTRIBUTING.md).
+Business decisions are recorded in the [decision log](docs/decisions.md); the endpoints are
+summarized in [docs/api.md](docs/api.md). Branches, pull requests and releases follow
+[CONTRIBUTING.md](CONTRIBUTING.md).
 
 ## Local development
 
@@ -67,8 +69,10 @@ Swagger UI: http://localhost:8080/swagger-ui.html
 
 In-app notifications always work; push is an optional best-effort copy.
 
-### Administrator recovery
+### Administrators
 
-The administrator is whoever's Firebase UID is in `ADMIN_AUTH_SUBJECT`. To recover or transfer
-admin access, set the new UID (Firebase console → Authentication → Users) and restart the
-backend. The app has no feature to promote users.
+There are two roles. **League administrators** are members of a league with the `ADMIN` role:
+the creator becomes one, and they promote or revoke others in the app. The single **system
+administrator** is whoever's Firebase UID is in `ADMIN_AUTH_SUBJECT`: they may act as league
+administrator in any league and unarchive leagues. To recover or transfer it, set the new UID
+(Firebase console → Authentication → Users) and restart the backend.

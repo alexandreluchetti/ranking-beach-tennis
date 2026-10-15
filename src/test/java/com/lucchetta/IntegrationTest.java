@@ -1,6 +1,7 @@
 package com.lucchetta;
 
 import com.lucchetta.configuration.security.AdminAwareAuthoritiesConverter;
+import com.lucchetta.core.domain.league.DefaultLeague;
 import org.junit.jupiter.api.BeforeEach;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
@@ -29,7 +30,7 @@ public abstract class IntegrationTest {
     protected static final String WEB_ORIGIN = "https://web.example.test";
 
     @ServiceConnection
-    static final PostgreSQLContainer POSTGRES = new PostgreSQLContainer("postgres:17-alpine");
+    protected static final PostgreSQLContainer POSTGRES = new PostgreSQLContainer("postgres:17-alpine");
 
     static {
         POSTGRES.start();
@@ -43,7 +44,12 @@ public abstract class IntegrationTest {
     @BeforeEach
     void cleanDatabase() {
         jdbcTemplate.execute("truncate table device_token, notification, match_audit, match_participant, match, season_audit,"
-                + " season, app_user cascade");
+                + " season, league_invitation, league_join_request, league_member, league, app_user cascade");
+        // The migrated league (V6), which the endpoints without a league are bound to.
+        jdbcTemplate.update("""
+                insert into league (id, name, visibility, created_at, updated_at)
+                values (?, ?, 'PUBLIC', now(), now())
+                """, DefaultLeague.ID, DefaultLeague.NAME);
     }
 
     protected static RequestPostProcessor token(String subject, String name, String email) {

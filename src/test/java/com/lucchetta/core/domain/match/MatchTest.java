@@ -1,6 +1,7 @@
 package com.lucchetta.core.domain.match;
 
 import com.lucchetta.core.exception.RuleViolationException;
+import com.lucchetta.core.support.TestLeague;
 import org.junit.jupiter.api.Test;
 
 import java.time.Instant;
@@ -89,8 +90,8 @@ class MatchTest {
     void contentComparisonIgnoresParticipantOrderAndSubSecondPrecision() {
         Match a = match(teams(ANA, BETO, CAIO, DANI));
         List<Participant> reordered = teams(ANA, BETO, CAIO, DANI).reversed();
-        Match b = new Match(a.id(), PLAYED.plusNanos(123_456), SIX_FOUR, reordered, MatchStatus.VALID,
-                UUID.randomUUID(), PLAYED, PLAYED);
+        Match b = new Match(a.id(), TestLeague.ID, PLAYED.plusNanos(123_456), SIX_FOUR, reordered,
+                MatchStatus.VALID, UUID.randomUUID(), PLAYED, PLAYED);
 
         assertThat(a.hasSameContentAs(b)).isTrue();
         assertThat(a.hasSameContentAs(match(teams(ANA, BETO, CAIO, DANI), new Score(MatchFormat.STANDARD, 6, 3, null, null))))
@@ -99,16 +100,16 @@ class MatchTest {
 
     @Test
     void playedOnUsesBrasiliaDate() {
-        Match lateNight = new Match(UUID.randomUUID(), Instant.parse("2026-10-12T01:30:00Z"), SIX_FOUR,
-                teams(ANA, BETO, CAIO, DANI), MatchStatus.VALID, ANA, PLAYED, PLAYED);
+        Match lateNight = new Match(UUID.randomUUID(), TestLeague.ID, Instant.parse("2026-10-12T01:30:00Z"),
+                SIX_FOUR, teams(ANA, BETO, CAIO, DANI), MatchStatus.VALID, ANA, PLAYED, PLAYED);
 
         assertThat(lateNight.playedOn()).isEqualTo(LocalDate.of(2026, 10, 11));
     }
 
     @Test
     void requiresDate() {
-        assertThatThrownBy(() -> new Match(UUID.randomUUID(), null, SIX_FOUR, teams(ANA, BETO, CAIO, DANI),
-                MatchStatus.VALID, ANA, PLAYED, PLAYED))
+        assertThatThrownBy(() -> new Match(UUID.randomUUID(), TestLeague.ID, null, SIX_FOUR,
+                teams(ANA, BETO, CAIO, DANI), MatchStatus.VALID, ANA, PLAYED, PLAYED))
                 .hasMessage("INVALID_MATCH_DATE");
     }
 
@@ -129,6 +130,7 @@ class MatchTest {
     }
 
     private static Match match(List<Participant> participants, Score score) {
-        return new Match(UUID.randomUUID(), PLAYED, score, participants, MatchStatus.VALID, ANA, PLAYED, PLAYED);
+        return new Match(UUID.randomUUID(), TestLeague.ID, PLAYED, score, participants, MatchStatus.VALID, ANA,
+                PLAYED, PLAYED);
     }
 }

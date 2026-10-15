@@ -1,7 +1,8 @@
 # ranking-beach-tennis — Instruções para Claude
 
-Backend do aplicativo de ranking individual de beach tennis. Spring Boot 4.x, Java 25,
-PostgreSQL, Flyway. O app Flutter vive em repositório separado
+Backend do aplicativo de ranking individual de beach tennis organizado em **ligas** (cada liga
+tem membros, temporadas, partidas e ranking próprios; D-017 a D-023). Spring Boot 4.x, Java 25,
+PostgreSQL, Flyway. Mapa de endpoints: [`docs/api.md`](../docs/api.md). O app Flutter vive em repositório separado
 (`C:\Users\luche\IdeaProjects\ranking-beach-tennis-app`), mantido por outra sessão:
 **não altere o repositório do app**. Pedidos de mudança na API chegam por meio do usuário.
 
@@ -55,6 +56,13 @@ Regras:
 - Operações administrativas (correção, anulação, reversão) são auditadas com o estado
   completo antes/depois e geram notificações na mesma transação; o push é enviado depois,
   como cópia sem garantia.
+- Toda temporada e partida pertence a uma liga (`league_id`). Casos de uso com escopo de liga
+  recebem o `leagueId` e checam acesso via `LeagueAccess` (membro, administrador da liga ou
+  administrador geral); conteúdo de uma liga é só para membros (D-020). Entrada de membros passa
+  sempre por `LeagueAdmission` (limite de 50, cancela pedidos/convites pendentes); mudanças de
+  membros travam a linha da liga (`findByIdForUpdate`).
+- Endpoints sem liga (app antigo) respondem nos mesmos controllers com `leagueId` opcional e
+  usam a liga "Beach Tennis Arena" (`DefaultLeague`), via `LeagueScope` (D-023).
 
 ## Stack
 
@@ -100,9 +108,11 @@ Windows bloqueia o jar e `./mvnw verify` falha no repackage: pare-o ou rode em u
 ## Segurança
 
 - Autenticação via Firebase JWT (validado em `FirebaseTokenValidators`).
-- Administrador identificado pelo `sub` do token comparado a `ADMIN_AUTH_SUBJECT`
-  (em `AdminAwareAuthoritiesConverter`). Roles **nunca** vêm de claims do token.
-  Casos de uso administrativos verificam a permissão de novo (defesa em profundidade).
+- Dois papéis (D-018): **administrador da liga** (`league_member.role = ADMIN`) e **administrador
+  geral** (`sub` do token igual a `ADMIN_AUTH_SUBJECT`, em `AdminAwareAuthoritiesConverter`),
+  que age como administrador em qualquer liga. Roles **nunca** vêm de claims do token.
+  `/api/admin/**` exige o administrador geral; as demais permissões são checadas nos casos de
+  uso (`LeagueAccess`).
 - Verificação de e-mail **não** é obrigatória.
 
 ## Convenções de código
@@ -146,3 +156,6 @@ Windows bloqueia o jar e `./mvnw verify` falha no repackage: pare-o ou rode em u
 - Cálculo de ranking: `RankingCalculator`, ordem de desempate em D-013.
 - Possível duplicata e idempotência do registro: `RegisterMatch` (D-012).
 - Correção/anulação/reversão: `MatchAdministration`.
+- Ligas: `core/usecase/league` (`LeagueAccess`, `LeagueAdmission`, `LeagueMembership`, `JoinRequests`,
+  `LeagueInvitations`, `InviteCodes`); fiação em `LeagueUseCaseConfiguration`.
+- Estatísticas globais do próprio usuário: `GetMyStatistics` (D-022).

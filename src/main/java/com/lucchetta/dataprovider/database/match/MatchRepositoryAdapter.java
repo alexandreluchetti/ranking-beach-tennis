@@ -33,7 +33,7 @@ import java.util.UUID;
 public class MatchRepositoryAdapter implements MatchRepository {
 
     private static final String SELECT_MATCH = """
-            select id, played_at, format, team_a_games, team_b_games, tiebreak_team_a_points,
+            select id, league_id, played_at, format, team_a_games, team_b_games, tiebreak_team_a_points,
                    tiebreak_team_b_points, status, registered_by, registered_at, updated_at,
                    void_reason, voided_by, voided_at, version
             from match
@@ -57,9 +57,10 @@ public class MatchRepositoryAdapter implements MatchRepository {
 
     @Override
     @Transactional(readOnly = true)
-    public List<Match> findValidPlayedBetween(Instant from, Instant to) {
-        List<MatchRow> rows = jdbcClient.sql(SELECT_MATCH
-                        + " where status = 'VALID' and played_at >= :from and played_at < :to order by played_at")
+    public List<Match> findValidPlayedBetween(UUID leagueId, Instant from, Instant to) {
+        List<MatchRow> rows = jdbcClient.sql(SELECT_MATCH + " where league_id = :leagueId and status = 'VALID'"
+                        + " and played_at >= :from and played_at < :to order by played_at")
+                .param("leagueId", leagueId)
                 .param("from", utc(from))
                 .param("to", utc(to))
                 .query(MatchRepositoryAdapter::mapRow)
@@ -69,9 +70,13 @@ public class MatchRepositoryAdapter implements MatchRepository {
 
     @Override
     @Transactional(readOnly = true)
-    public List<Match> findPlayed(Instant from, Instant to, UUID playerId) {
+    public List<Match> findPlayed(UUID leagueId, Instant from, Instant to, UUID playerId) {
         StringBuilder sql = new StringBuilder(SELECT_MATCH).append(" where true");
         Map<String, Object> params = new HashMap<>();
+        if (leagueId != null) {
+            sql.append(" and league_id = :leagueId");
+            params.put("leagueId", leagueId);
+        }
         if (from != null) {
             sql.append(" and played_at >= :from");
             params.put("from", utc(from));
@@ -93,14 +98,15 @@ public class MatchRepositoryAdapter implements MatchRepository {
     @Transactional
     public boolean insertIfAbsent(Match match) {
         int inserted = jdbcClient.sql("""
-                        insert into match (id, played_at, format, team_a_games, team_b_games,
+                        insert into match (id, league_id, played_at, format, team_a_games, team_b_games,
                                            tiebreak_team_a_points, tiebreak_team_b_points, status,
                                            registered_by, registered_at, updated_at)
-                        values (:id, :playedAt, :format, :teamAGames, :teamBGames, :tiebreakA, :tiebreakB,
+                        values (:id, :leagueId, :playedAt, :format, :teamAGames, :teamBGames, :tiebreakA, :tiebreakB,
                                 :status, :registeredBy, :registeredAt, :updatedAt)
                         on conflict (id) do nothing
                         """)
                 .param("id", match.id())
+                .param("leagueId", match.leagueId())
                 .param("playedAt", utc(match.playedAt()))
                 .param("format", match.format().name())
                 .param("teamAGames", match.score().teamAGames())
@@ -176,8 +182,9 @@ public class MatchRepositoryAdapter implements MatchRepository {
         Map<UUID, List<Participant>> participants = participantsOf(rows.stream().map(MatchRow::id).toList());
         List<Match> matches = new ArrayList<>(rows.size());
         for (MatchRow row : rows) {
-            matches.add(new Match(row.id(), row.playedAt(), row.score(), participants.get(row.id()), row.status(),
-                    row.registeredBy(), row.registeredAt(), row.updatedAt(), row.voiding(), row.version()));
+            matches.add(new Match(row.id(), row.leagueId(), row.playedAt(), row.score(), participants.get(row.id()),
+                    row.status(), row.registeredBy(), row.registeredAt(), row.updatedAt(), row.voiding(),
+                    row.version()));
         }
         return matches;
     }
@@ -209,6 +216,7 @@ public class MatchRepositoryAdapter implements MatchRepository {
                 : new VoidInfo(voidReason, rs.getObject("voided_by", UUID.class), instant(rs, "voided_at"));
         return new MatchRow(
                 rs.getObject("id", UUID.class),
+                rs.getObject("league_id", UUID.class),
                 instant(rs, "played_at"),
                 score,
                 MatchStatus.valueOf(rs.getString("status")),
@@ -227,7 +235,7 @@ public class MatchRepositoryAdapter implements MatchRepository {
         return OffsetDateTime.ofInstant(instant, ZoneOffset.UTC);
     }
 
-    private record MatchRow(UUID id, Instant playedAt, Score score, MatchStatus status, UUID registeredBy,
-                            Instant registeredAt, Instant updatedAt, VoidInfo voiding, int version) {
+    private record MatchRow(UUID id, UUID leagueId, Instant playedAt, Score score, MatchStatus status,
+                            UUID registeredBy, Instant registeredAt, Instant updatedAt, VoidInfo voiding, int version) {
     }
 }

@@ -6,6 +6,7 @@ import com.lucchetta.core.domain.DisplayName;
 import com.lucchetta.core.domain.Player;
 import com.lucchetta.core.domain.Season;
 import com.lucchetta.core.support.InMemorySeasons;
+import com.lucchetta.core.support.TestLeague;
 
 import java.time.Clock;
 import java.time.Instant;
@@ -26,12 +27,15 @@ final class SeasonUseCaseFixture {
             new AuthenticatedUser(new AuthIdentity("firebase", "user-uid"), null, "Ana", false);
     static final Player ADMIN_PLAYER =
             new Player(UUID.randomUUID(), ADMIN.identity(), null, new DisplayName("Admin"), NOW, NOW);
+    static final Player REGULAR_PLAYER =
+            new Player(UUID.randomUUID(), REGULAR_USER.identity(), null, new DisplayName("Ana"), NOW, NOW);
 
     private SeasonUseCaseFixture() {
     }
 
     static Season storedSeason(InMemorySeasons seasons, String name, LocalDate start, LocalDate end) {
         Instant created = Instant.parse("2026-01-01T12:00:00Z");
-        return seasons.add(new Season(UUID.randomUUID(), name, start, end, ADMIN_PLAYER.id(), created, created));
+        return seasons.add(new Season(UUID.randomUUID(), TestLeague.ID, name, start, end, ADMIN_PLAYER.id(), created,
+                created));
     }
 }
