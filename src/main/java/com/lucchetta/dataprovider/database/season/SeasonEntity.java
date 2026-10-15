@@ -16,6 +16,9 @@ public class SeasonEntity {
     @Id
     private UUID id;
 
+    @Column(name = "league_id", nullable = false, updatable = false)
+    private UUID leagueId;
+
     @Column(name = "name", nullable = false)
     private String name;
 
@@ -37,9 +40,10 @@ public class SeasonEntity {
     protected SeasonEntity() {
     }
 
-    public SeasonEntity(UUID id, String name, LocalDate startDate, LocalDate endDate, UUID createdBy,
-                        Instant createdAt, Instant updatedAt) {
+    public SeasonEntity(UUID id, UUID leagueId, String name, LocalDate startDate, LocalDate endDate,
+                        UUID createdBy, Instant createdAt, Instant updatedAt) {
         this.id = id;
+        this.leagueId = leagueId;
         this.name = name;
         this.startDate = startDate;
         this.endDate = endDate;

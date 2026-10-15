@@ -1,6 +1,7 @@
 package com.lucchetta.entrypoint.rest.season;
 
 import com.lucchetta.IntegrationTest;
+import com.lucchetta.core.domain.league.DefaultLeague;
 import com.jayway.jsonpath.JsonPath;
 import org.junit.jupiter.api.Test;
 import org.springframework.dao.DataIntegrityViolationException;
@@ -92,9 +93,9 @@ class SeasonApiIT extends IntegrationTest {
                 UUID.fromString(id));
 
         assertThatThrownBy(() -> jdbcTemplate.update("""
-                insert into season (id, name, start_date, end_date, created_by, created_at, updated_at)
-                values (?, 'Paralela', ?, ?, ?, now(), now())
-                """, UUID.randomUUID(), TODAY.plusDays(60), TODAY.plusDays(90), createdBy))
+                insert into season (id, league_id, name, start_date, end_date, created_by, created_at, updated_at)
+                values (?, ?, 'Paralela', ?, ?, ?, now(), now())
+                """, UUID.randomUUID(), DefaultLeague.ID, TODAY.plusDays(60), TODAY.plusDays(90), createdBy))
                 .isInstanceOf(DataIntegrityViolationException.class)
                 .hasMessageContaining("ex_season_no_overlap");
     }

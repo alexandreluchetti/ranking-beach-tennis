@@ -1,5 +1,6 @@
 package com.lucchetta.dataprovider.database.match;
 
+import com.lucchetta.core.domain.league.DefaultLeague;
 import com.lucchetta.core.domain.match.Match;
 import com.lucchetta.core.domain.match.MatchFormat;
 import com.lucchetta.core.domain.match.MatchStatus;
@@ -93,14 +94,15 @@ public class MatchRepositoryAdapter implements MatchRepository {
     @Transactional
     public boolean insertIfAbsent(Match match) {
         int inserted = jdbcClient.sql("""
-                        insert into match (id, played_at, format, team_a_games, team_b_games,
+                        insert into match (id, league_id, played_at, format, team_a_games, team_b_games,
                                            tiebreak_team_a_points, tiebreak_team_b_points, status,
                                            registered_by, registered_at, updated_at)
-                        values (:id, :playedAt, :format, :teamAGames, :teamBGames, :tiebreakA, :tiebreakB,
+                        values (:id, :leagueId, :playedAt, :format, :teamAGames, :teamBGames, :tiebreakA, :tiebreakB,
                                 :status, :registeredBy, :registeredAt, :updatedAt)
                         on conflict (id) do nothing
                         """)
                 .param("id", match.id())
+                .param("leagueId", DefaultLeague.ID)
                 .param("playedAt", utc(match.playedAt()))
                 .param("format", match.format().name())
                 .param("teamAGames", match.score().teamAGames())

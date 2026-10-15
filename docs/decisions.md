@@ -5,9 +5,10 @@ as **Approved** must not be implemented without discussion.
 
 ## Approved
 
-### D-001 — Open sign-up
-Any person who installs the app and creates an account automatically participates in the
-ranking. No approval, invite code or allowlist.
+### D-001 — Open sign-up (superseded by D-017)
+Any person can create an account. ~~Every account automatically participates in the ranking.~~
+Since leagues (D-017), an account takes part in the rankings of the leagues it is a member of;
+a new account belongs to no league.
 
 ### D-002 — Valid final scores
 | Format | Valid final scores (winner–loser) |
@@ -103,6 +104,84 @@ addition to the current participants (implemented with notifications, stage 6).
 A match saved on the phone and not yet sent can be edited or discarded on that phone, only by
 the user who registered it. Once the server has it, only the administrator can change it.
 
+### D-017 — Leagues
+- A league is a space where its members compete in that league's own ranking. Seasons,
+  matches, rankings and statistics belong to exactly one league and are independent from other
+  leagues. A user may be a member of several leagues at the same time (one ranking per league).
+- Any signed-in user can create a league; the creator becomes a league administrator.
+- League data: name 3–60 characters, **unique** (case-insensitive); optional description up to
+  500 characters; visibility `PUBLIC` or `PRIVATE`. League administrators may edit all of it,
+  including the visibility. No picture for now.
+- Leagues are never deleted, only **archived** (read-only, hidden from search). Any league
+  administrator or the system administrator can archive; only the system administrator can
+  unarchive.
+- A user may have at most 5 non-archived leagues they created; the system administrator has
+  no limit.
+- A league has at most **50 members**, administrators included. The member count is visible to
+  every user as `n/50`. A full league accepts nobody (direct join, invite code, accepted
+  request or accepted invitation are rejected).
+- Rules that were global now apply per league: one season at a time and no overlapping seasons
+  (D-006, D-008, D-010), possible duplicates (D-012), ranking order (D-013).
+
+### D-018 — League roles
+- League administrator: any member can be one. Inside the league they do what the single
+  administrator did before (create and edit seasons; correct, void and restore matches), plus:
+  accept or reject join requests, invite users, promote and revoke league administrators,
+  edit and archive the league, remove members.
+- A league always has at least one administrator: the last one can be neither revoked nor
+  leave. The creator has no special protection. An administrator may revoke themselves unless
+  they are the last one.
+- System administrator (`ADMIN_AUTH_SUBJECT`, a single person) is a different role: they may
+  act as league administrator in **any** league, member or not, and archive or unarchive
+  leagues. Otherwise they are a regular user. Acting in a league without being a member does
+  not count towards its member limit.
+
+### D-019 — Joining and leaving a league
+- Public league: any user joins directly.
+- Private league: a user joins by
+  - **request**: any league administrator accepts or rejects it; the requester may cancel it;
+    at most one pending request per user and league; league administrators are notified of
+    the request and the requester of the answer;
+  - **invite code / link**: league administrators share it; whoever uses it joins directly;
+    an administrator can regenerate it, invalidating the previous one;
+  - **in-app invitation**: a league administrator invites a specific registered user, who
+    receives an in-app notification and accepts or rejects it there. No e-mail is sent.
+- A member may leave; a league administrator may remove a member. Their matches remain valid.
+  They may come back later following the league's entry rules.
+
+### D-020 — League visibility
+- Non-members (public or private league alike) see only the league's name, description,
+  visibility and member count, to decide whether to join or request. Ranking, seasons,
+  matches, members and player profiles are visible to members only (and to the system
+  administrator).
+- Users who are not members of a league are not visible inside it (member lists, player
+  pickers).
+
+### D-021 — Matches and rankings inside a league
+- A match is registered inside the league the user is in, and belongs to it. The registering
+  user must be a member of that league.
+- Every registered player in a match must be a member of the league. Guest positions (a typed
+  name, D-004) are still allowed; a match with a guest gives no points to anyone but counts for
+  statistics.
+- Season ranking members: the league's members up to the season's end date, plus anyone who
+  played in it. A member who leaves no longer appears in later seasons but stays in the
+  seasons they played.
+- A player's profile and statistics inside a league cover only that league's matches and are
+  visible only to that league's members.
+- Notifications about matches go to the participants and to that league's administrators
+  (instead of the system administrator).
+
+### D-022 — Global statistics of the user
+Each user can see their own global statistics, summed over all leagues: matches played, wins,
+losses, game difference and win rate (`Aproveitamento`). No points (each league has its own
+ranking). Nobody can see another user's global statistics.
+
+### D-023 — Migration of the existing group
+All existing users, seasons and matches move to a new **public** league named
+**"Beach Tennis Arena"**, whose league administrator is the current system administrator.
+The current endpoints keep working, bound to this league, until the app with leagues is
+published; then they are removed.
+
 ## Technical defaults (easy to change)
 
 - Display name: 2–40 characters, whitespace normalized. Initial value: name from the login
@@ -138,6 +217,11 @@ the user who registered it. Once the server has it, only the administrator can c
   needs the Apple Developer account and an APNs key in Firebase.
 - Rankings and statistics are computed in Java from the matches, so the scoring formula exists
   in exactly one place (`GamesPlusWinBonusScoringPolicy`).
+- In-app league invitation: the league administrator types the invitee's **exact e-mail**. The
+  answer is always "invitation sent", whether or not an account has that e-mail, so the app
+  never reveals who uses it.
+- Win rate (`Aproveitamento`): wins ÷ matches played × 100, rounded to an integer (7 of 11 →
+  64%); empty (not 0%) when there are no matches.
 
 ## Proposed (awaiting approval)
 

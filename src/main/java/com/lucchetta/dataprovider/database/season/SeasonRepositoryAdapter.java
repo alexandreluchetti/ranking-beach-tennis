@@ -1,6 +1,7 @@
 package com.lucchetta.dataprovider.database.season;
 
 import com.lucchetta.core.domain.Season;
+import com.lucchetta.core.domain.league.DefaultLeague;
 import com.lucchetta.core.exception.ConflictException;
 import com.lucchetta.core.port.SeasonRepository;
 import org.springframework.dao.DataIntegrityViolationException;
@@ -54,8 +55,8 @@ public class SeasonRepositoryAdapter implements SeasonRepository {
     @Override
     @Transactional
     public Season insert(Season season) {
-        SeasonEntity entity = new SeasonEntity(season.id(), season.name(), season.startDate(), season.endDate(),
-                season.createdBy(), season.createdAt(), season.updatedAt());
+        SeasonEntity entity = new SeasonEntity(season.id(), DefaultLeague.ID, season.name(), season.startDate(),
+                season.endDate(), season.createdBy(), season.createdAt(), season.updatedAt());
         return toDomain(saveTranslatingOverlap(entity));
     }
 
