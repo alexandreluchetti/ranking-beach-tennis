@@ -19,6 +19,9 @@ public interface LeagueRepository {
 
     List<League> findAllByIds(Collection<UUID> ids);
 
+    /** The league whose current invite code is {@code inviteCode} (exact, already normalized). */
+    Optional<League> findByInviteCode(String inviteCode);
+
     /** Whether another league ({@code excludedId} aside) has this name, ignoring case. */
     boolean existsByName(String name, UUID excludedId);
 

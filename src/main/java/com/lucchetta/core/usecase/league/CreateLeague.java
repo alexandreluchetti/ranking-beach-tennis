@@ -58,6 +58,6 @@ public class CreateLeague {
             memberRepository.insert(new LeagueMember(inserted.id(), creator.id(), LeagueRole.ADMIN, now));
             return inserted;
         });
-        return new LeagueView(created, 1, LeagueRole.ADMIN, true);
+        return new LeagueView(created, 1, LeagueRole.ADMIN, true, false);
     }
 }

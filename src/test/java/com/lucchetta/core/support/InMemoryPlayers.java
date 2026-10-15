@@ -45,6 +45,19 @@ public class InMemoryPlayers implements PlayerRepository {
     }
 
     @Override
+    public List<Player> findByEmail(String email) {
+        return players.values().stream().filter(p -> p.email() != null && p.email().equalsIgnoreCase(email)).toList();
+    }
+
+    /** Stores a copy of the player with the given e-mail. */
+    public Player withEmail(Player player, String email) {
+        Player changed = new Player(player.id(), player.identity(), email, player.displayName(), player.createdAt(),
+                player.updatedAt());
+        players.put(changed.id(), changed);
+        return changed;
+    }
+
+    @Override
     public void insertIfAbsent(Player player) {
         players.putIfAbsent(player.id(), player);
     }

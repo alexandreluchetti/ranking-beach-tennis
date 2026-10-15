@@ -44,6 +44,12 @@ public class PlayerRepositoryAdapter implements PlayerRepository {
     }
 
     @Override
+    @Transactional(readOnly = true)
+    public List<Player> findByEmail(String email) {
+        return jpaRepository.findByEmailIgnoringCase(email).stream().map(PlayerRepositoryAdapter::toDomain).toList();
+    }
+
+    @Override
     @Transactional
     public void insertIfAbsent(Player player) {
         jpaRepository.insertIfAbsent(

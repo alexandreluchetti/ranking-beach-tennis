@@ -28,12 +28,19 @@ import java.util.UUID;
 @RestController
 public class NotificationController {
 
+    /**
+     * @param leagueId      league of a league notification
+     * @param joinRequestId join request a league administrator may accept or reject
+     * @param invitationId  invitation the recipient may accept or reject
+     */
     public record NotificationResponse(UUID id, NotificationType type, UUID matchId, String title, String body,
-                                       OffsetDateTime createdAt, boolean read) {
+                                       OffsetDateTime createdAt, boolean read, UUID leagueId, UUID joinRequestId,
+                                       UUID invitationId) {
 
         static NotificationResponse from(Notification n) {
             return new NotificationResponse(n.id(), n.type(), n.matchId(), n.title(), n.body(),
-                    OffsetDateTime.ofInstant(n.createdAt(), BusinessCalendar.ZONE), n.read());
+                    OffsetDateTime.ofInstant(n.createdAt(), BusinessCalendar.ZONE), n.read(), n.leagueId(),
+                    n.joinRequestId(), n.invitationId());
         }
     }
 

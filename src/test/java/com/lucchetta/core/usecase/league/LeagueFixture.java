@@ -7,8 +7,13 @@ import com.lucchetta.core.domain.league.LeagueMember;
 import com.lucchetta.core.domain.league.LeagueRole;
 import com.lucchetta.core.domain.league.LeagueVisibility;
 import com.lucchetta.core.support.DirectTransactionRunner;
+import com.lucchetta.core.support.InMemoryInvitations;
+import com.lucchetta.core.support.InMemoryJoinRequests;
 import com.lucchetta.core.support.InMemoryLeagues;
+import com.lucchetta.core.support.InMemoryNotifications;
 import com.lucchetta.core.support.InMemoryPlayers;
+import com.lucchetta.core.usecase.notification.LeagueNotifier;
+import com.lucchetta.core.usecase.notification.PushDispatcher;
 import com.lucchetta.core.usecase.player.GetOrCreateCurrentPlayer;
 
 import java.time.Clock;
@@ -24,14 +29,28 @@ class LeagueFixture {
 
     final InMemoryPlayers players = new InMemoryPlayers();
     final InMemoryLeagues leagues = new InMemoryLeagues();
+    final InMemoryJoinRequests joinRequests = new InMemoryJoinRequests();
+    final InMemoryInvitations invitations = new InMemoryInvitations();
+    final InMemoryNotifications notifications = new InMemoryNotifications();
     final DirectTransactionRunner transactions = new DirectTransactionRunner();
-    final LeagueAccess access = new LeagueAccess(new GetOrCreateCurrentPlayer(players, CLOCK), leagues, leagues);
+    final LeagueAccess access = new LeagueAccess(new GetOrCreateCurrentPlayer(players, CLOCK), leagues, leagues,
+            joinRequests);
+    final LeagueAdmission admission = new LeagueAdmission(leagues, joinRequests, invitations, CLOCK);
+    final LeagueNotifier notifier = new LeagueNotifier(notifications, CLOCK);
+    final PushDispatcher push = new PushDispatcher(notifications, notifications);
+    private int nextCode;
 
     final CreateLeague createLeague = new CreateLeague(access, leagues, leagues, transactions, CLOCK);
     final UpdateLeague updateLeague = new UpdateLeague(access, leagues, transactions, CLOCK);
     final LeagueArchiving archiving = new LeagueArchiving(access, leagues, transactions, CLOCK);
-    final QueryLeagues queryLeagues = new QueryLeagues(access, leagues, leagues);
-    final LeagueMembership membership = new LeagueMembership(access, leagues, players, transactions, CLOCK);
+    final QueryLeagues queryLeagues = new QueryLeagues(access, leagues, leagues, joinRequests);
+    final LeagueMembership membership = new LeagueMembership(access, leagues, players, admission, transactions);
+    final JoinRequests requests = new JoinRequests(access, joinRequests, leagues, players, admission, notifier, push,
+            transactions, CLOCK);
+    final LeagueInvitations invites = new LeagueInvitations(access, invitations, leagues, leagues, players, admission,
+            notifier, push, transactions, CLOCK);
+    final InviteCodes inviteCodes = new InviteCodes(access, leagues, () -> "CODE" + (++nextCode), admission,
+            transactions, CLOCK);
 
     Player player(String name) {
         return players.add(name);

@@ -2,16 +2,19 @@ package com.lucchetta.core.usecase.league;
 
 import com.lucchetta.core.domain.AuthenticatedUser;
 import com.lucchetta.core.domain.Player;
+import com.lucchetta.core.domain.league.JoinRequest;
 import com.lucchetta.core.domain.league.League;
 import com.lucchetta.core.domain.league.LeagueMember;
 import com.lucchetta.core.domain.league.LeagueRole;
 import com.lucchetta.core.exception.ForbiddenException;
+import com.lucchetta.core.port.JoinRequestRepository;
 import com.lucchetta.core.port.LeagueMemberRepository;
 import com.lucchetta.core.port.LeagueRepository;
 
 import java.util.Comparator;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.UUID;
 import java.util.stream.Collectors;
 
@@ -31,13 +34,16 @@ public class QueryLeagues {
     private final LeagueAccess leagueAccess;
     private final LeagueRepository leagueRepository;
     private final LeagueMemberRepository memberRepository;
+    private final JoinRequestRepository joinRequestRepository;
 
     public QueryLeagues(LeagueAccess leagueAccess,
                         LeagueRepository leagueRepository,
-                        LeagueMemberRepository memberRepository) {
+                        LeagueMemberRepository memberRepository,
+                        JoinRequestRepository joinRequestRepository) {
         this.leagueAccess = leagueAccess;
         this.leagueRepository = leagueRepository;
         this.memberRepository = memberRepository;
+        this.joinRequestRepository = joinRequestRepository;
     }
 
     /** Leagues the caller is a member of, archived ones included, ordered by name. */
@@ -79,11 +85,14 @@ public class QueryLeagues {
     private List<LeagueView> views(AuthenticatedUser user, Player player, List<League> leagues,
                                    Map<UUID, LeagueRole> roles) {
         Map<UUID, Integer> counts = memberRepository.countByLeagues(leagues.stream().map(League::id).toList());
+        Set<UUID> requested = joinRequestRepository.findPendingByPlayer(player.id()).stream()
+                .map(JoinRequest::leagueId)
+                .collect(Collectors.toSet());
         return leagues.stream()
                 .map(league -> {
                     LeagueRole role = roles.get(league.id());
                     return new LeagueView(league, counts.getOrDefault(league.id(), 0), role,
-                            user.admin() || role == LeagueRole.ADMIN);
+                            user.admin() || role == LeagueRole.ADMIN, requested.contains(league.id()));
                 })
                 .toList();
     }

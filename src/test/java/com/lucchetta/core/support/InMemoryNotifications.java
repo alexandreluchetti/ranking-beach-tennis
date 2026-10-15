@@ -61,8 +61,7 @@ public class InMemoryNotifications implements NotificationRepository, DeviceToke
         for (Map.Entry<String, Notification> e : byDedupKey.entrySet()) {
             Notification n = e.getValue();
             if (n.id().equals(notificationId) && n.recipientId().equals(recipientId)) {
-                e.setValue(new Notification(n.id(), n.recipientId(), n.type(), n.matchId(), n.title(), n.body(),
-                        n.createdAt(), n.readAt() == null ? readAt : n.readAt(), n.dedupKey()));
+                e.setValue(n.read() ? n : n.markedRead(readAt));
                 return true;
             }
         }

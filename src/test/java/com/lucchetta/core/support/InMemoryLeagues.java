@@ -45,6 +45,11 @@ public class InMemoryLeagues implements LeagueRepository, LeagueMemberRepository
     }
 
     @Override
+    public Optional<League> findByInviteCode(String inviteCode) {
+        return leagues.values().stream().filter(league -> inviteCode.equals(league.inviteCode())).findFirst();
+    }
+
+    @Override
     public boolean existsByName(String name, UUID excludedId) {
         return leagues.values().stream()
                 .anyMatch(league -> league.name().equalsIgnoreCase(name) && !league.id().equals(excludedId));

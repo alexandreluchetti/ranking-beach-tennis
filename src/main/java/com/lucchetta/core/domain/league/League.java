@@ -63,6 +63,12 @@ public record League(
                 archivedAt, archivedBy, version);
     }
 
+    /** A new invite code invalidates the previous one (decision D-019). */
+    public League withInviteCode(String code, Instant now) {
+        return new League(id, name, description, visibility, code, createdBy, createdAt, now, archivedAt, archivedBy,
+                version);
+    }
+
     public League archive(UUID by, Instant now) {
         return new League(id, name, description, visibility, inviteCode, createdBy, createdAt, now, now, by, version);
     }

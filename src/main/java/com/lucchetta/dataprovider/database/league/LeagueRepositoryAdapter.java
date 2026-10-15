@@ -69,6 +69,15 @@ public class LeagueRepositoryAdapter implements LeagueRepository {
 
     @Override
     @Transactional(readOnly = true)
+    public Optional<League> findByInviteCode(String inviteCode) {
+        return jdbcClient.sql(SELECT_LEAGUE + " where invite_code = :inviteCode")
+                .param("inviteCode", inviteCode)
+                .query(LeagueRepositoryAdapter::mapRow)
+                .optional();
+    }
+
+    @Override
+    @Transactional(readOnly = true)
     public boolean existsByName(String name, UUID excludedId) {
         return jdbcClient.sql("""
                         select count(*) > 0 from league

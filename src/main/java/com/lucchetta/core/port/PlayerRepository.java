@@ -16,6 +16,9 @@ public interface PlayerRepository {
 
     List<Player> findAll();
 
+    /** Accounts whose e-mail is exactly {@code email}, ignoring case (several providers may share it). */
+    List<Player> findByEmail(String email);
+
     /**
      * Inserts the player unless one with the same identity already exists. Safe under concurrent
      * first logins of the same user.

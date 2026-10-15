@@ -56,6 +56,14 @@ final class ErrorMessages {
             Map.entry("LEAGUE_PRIVATE", "Esta liga é privada. Solicite a entrada ou use um convite."),
             Map.entry("LEAGUE_MEMBER_NOT_FOUND", "Membro não encontrado nesta liga."),
             Map.entry("LAST_LEAGUE_ADMIN", "A liga precisa ter ao menos um administrador."),
+            Map.entry("ALREADY_LEAGUE_MEMBER", "Você já é membro desta liga."),
+            Map.entry("LEAGUE_PUBLIC", "Esta liga é pública: entre diretamente, sem pedido."),
+            Map.entry("JOIN_REQUEST_NOT_FOUND", "Pedido de entrada não encontrado."),
+            Map.entry("JOIN_REQUEST_NOT_PENDING", "Este pedido de entrada já foi respondido ou cancelado."),
+            Map.entry("INVITATION_NOT_FOUND", "Convite não encontrado."),
+            Map.entry("INVITATION_NOT_PENDING", "Este convite já foi respondido ou cancelado."),
+            Map.entry("INVALID_EMAIL", "Informe um e-mail válido."),
+            Map.entry("INVITE_CODE_INVALID", "Código de convite inválido ou substituído por um novo."),
             Map.entry("INVALID_DEVICE", "Dados do dispositivo inválidos."));
 
     private static final String FALLBACK = "Não foi possível concluir a operação.";

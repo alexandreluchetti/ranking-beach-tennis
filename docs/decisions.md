@@ -220,6 +220,12 @@ published; then they are removed.
 - In-app league invitation: the league administrator types the invitee's **exact e-mail**. The
   answer is always "invitation sent", whether or not an account has that e-mail, so the app
   never reveals who uses it.
+- Invite code: 10 characters without look-alikes (no 0/O, 1/I/L), case-insensitive when typed;
+  works for public and private leagues; no expiry (regenerate to invalidate). Invitations and
+  join requests do not expire either.
+- Joining a league in any way cancels the user's other pending request and invitation to it.
+- An archived league keeps its members; they may still leave it, but nobody joins, edits it,
+  removes members or changes roles.
 - Win rate (`Aproveitamento`): wins ÷ matches played × 100, rounded to an integer (7 of 11 →
   64%); empty (not 0%) when there are no matches.
 

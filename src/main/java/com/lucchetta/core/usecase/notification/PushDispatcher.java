@@ -54,7 +54,10 @@ public class PushDispatcher {
         Map<String, String> data = Map.of(
                 "notificationId", notification.id().toString(),
                 "type", notification.type().name(),
-                "matchId", Objects.toString(notification.matchId(), ""));
+                "matchId", Objects.toString(notification.matchId(), ""),
+                "leagueId", Objects.toString(notification.leagueId(), ""),
+                "joinRequestId", Objects.toString(notification.joinRequestId(), ""),
+                "invitationId", Objects.toString(notification.invitationId(), ""));
         PushSender.Result result;
         try {
             result = pushSender.send(token, notification.title(), notification.body(), data);

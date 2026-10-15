@@ -6,14 +6,12 @@ import com.lucchetta.core.domain.league.League;
 import com.lucchetta.core.domain.league.LeagueMember;
 import com.lucchetta.core.domain.league.LeagueRole;
 import com.lucchetta.core.domain.league.LeagueVisibility;
-import com.lucchetta.core.exception.ConflictException;
 import com.lucchetta.core.exception.NotFoundException;
 import com.lucchetta.core.exception.RuleViolationException;
 import com.lucchetta.core.port.LeagueMemberRepository;
 import com.lucchetta.core.port.PlayerRepository;
 import com.lucchetta.core.port.TransactionRunner;
 
-import java.time.Clock;
 import java.util.Comparator;
 import java.util.List;
 import java.util.Map;
@@ -30,19 +28,19 @@ public class LeagueMembership {
     private final LeagueAccess leagueAccess;
     private final LeagueMemberRepository memberRepository;
     private final PlayerRepository playerRepository;
+    private final LeagueAdmission admission;
     private final TransactionRunner transactionRunner;
-    private final Clock clock;
 
     public LeagueMembership(LeagueAccess leagueAccess,
                             LeagueMemberRepository memberRepository,
                             PlayerRepository playerRepository,
-                            TransactionRunner transactionRunner,
-                            Clock clock) {
+                            LeagueAdmission admission,
+                            TransactionRunner transactionRunner) {
         this.leagueAccess = leagueAccess;
         this.memberRepository = memberRepository;
         this.playerRepository = playerRepository;
+        this.admission = admission;
         this.transactionRunner = transactionRunner;
-        this.clock = clock;
     }
 
     /** Joins a public league. Joining a league one is already a member of changes nothing. */
@@ -57,7 +55,7 @@ public class LeagueMembership {
             if (league.visibility() != LeagueVisibility.PUBLIC) {
                 throw new RuleViolationException("LEAGUE_PRIVATE");
             }
-            LeagueMember member = addMember(league, context.player().id());
+            LeagueMember member = admission.admit(league, context.player().id());
             return leagueAccess.view(new LeagueAccess.Context(user, context.player(), league, member));
         });
     }
@@ -120,21 +118,6 @@ public class LeagueMembership {
                 .sorted(Comparator.comparing((MemberView view) -> view.member().role())
                         .thenComparing(view -> view.displayName().toLowerCase()))
                 .toList();
-    }
-
-    /**
-     * Adds a player to a league locked by the caller's transaction. Shared by every way of
-     * joining (decision D-019).
-     *
-     * @throws ConflictException LEAGUE_FULL when the league already has the maximum of members
-     */
-    LeagueMember addMember(League league, UUID playerId) {
-        if (memberRepository.count(league.id()) >= League.MAX_MEMBERS) {
-            throw new ConflictException("LEAGUE_FULL");
-        }
-        LeagueMember member = new LeagueMember(league.id(), playerId, LeagueRole.MEMBER, clock.instant());
-        memberRepository.insert(member);
-        return member;
     }
 
     private LeagueMember requireMember(UUID leagueId, UUID playerId) {

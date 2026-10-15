@@ -8,6 +8,7 @@ import com.lucchetta.core.domain.league.LeagueRole;
 import com.lucchetta.core.exception.ForbiddenException;
 import com.lucchetta.core.exception.NotFoundException;
 import com.lucchetta.core.exception.RuleViolationException;
+import com.lucchetta.core.port.JoinRequestRepository;
 import com.lucchetta.core.port.LeagueMemberRepository;
 import com.lucchetta.core.port.LeagueRepository;
 import com.lucchetta.core.usecase.player.GetOrCreateCurrentPlayer;
@@ -24,13 +25,16 @@ public class LeagueAccess {
     private final GetOrCreateCurrentPlayer getOrCreateCurrentPlayer;
     private final LeagueRepository leagueRepository;
     private final LeagueMemberRepository memberRepository;
+    private final JoinRequestRepository joinRequestRepository;
 
     public LeagueAccess(GetOrCreateCurrentPlayer getOrCreateCurrentPlayer,
                         LeagueRepository leagueRepository,
-                        LeagueMemberRepository memberRepository) {
+                        LeagueMemberRepository memberRepository,
+                        JoinRequestRepository joinRequestRepository) {
         this.getOrCreateCurrentPlayer = getOrCreateCurrentPlayer;
         this.leagueRepository = leagueRepository;
         this.memberRepository = memberRepository;
+        this.joinRequestRepository = joinRequestRepository;
     }
 
     /** The caller in a league: their player profile, the league and their membership, if any. */
@@ -84,8 +88,11 @@ public class LeagueAccess {
     }
 
     public LeagueView view(Context context) {
-        return new LeagueView(context.league(), memberRepository.count(context.league().id()), context.role(),
-                context.canAdminister());
+        League league = context.league();
+        boolean requested = !context.member()
+                && joinRequestRepository.findPending(league.id(), context.player().id()).isPresent();
+        return new LeagueView(league, memberRepository.count(league.id()), context.role(), context.canAdminister(),
+                requested);
     }
 
     private Context context(AuthenticatedUser user, UUID leagueId, boolean lock) {
