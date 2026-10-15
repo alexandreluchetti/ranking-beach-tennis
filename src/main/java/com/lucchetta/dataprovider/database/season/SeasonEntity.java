@@ -63,6 +63,10 @@ public class SeasonEntity {
         return id;
     }
 
+    public UUID getLeagueId() {
+        return leagueId;
+    }
+
     public String getName() {
         return name;
     }

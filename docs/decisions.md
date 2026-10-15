@@ -226,6 +226,14 @@ published; then they are removed.
 - Joining a league in any way cancels the user's other pending request and invitation to it.
 - An archived league keeps its members; they may still leave it, but nobody joins, edits it,
   removes members or changes roles.
+- Endpoints without a league (the app published before leagues) act on the "Beach Tennis Arena"
+  league and make the caller join it on first use, as for any public league. League endpoints
+  live under `/api/leagues/{leagueId}/...` with the same contracts.
+- Registering a match requires being a member of the league, the system administrator included;
+  administering matches and seasons does not (decision D-018).
+- A match id already used in another league is a conflict (`MATCH_ID_CONFLICT`).
+- Match notifications name "a administração da liga" as the author of corrections and voids and
+  carry the league id.
 - Win rate (`Aproveitamento`): wins ÷ matches played × 100, rounded to an integer (7 of 11 →
   64%); empty (not 0%) when there are no matches.
 

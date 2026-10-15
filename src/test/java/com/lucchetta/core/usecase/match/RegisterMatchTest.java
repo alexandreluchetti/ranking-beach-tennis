@@ -3,12 +3,17 @@ package com.lucchetta.core.usecase.match;
 import com.lucchetta.core.domain.AuthenticatedUser;
 import com.lucchetta.core.domain.Player;
 import com.lucchetta.core.domain.Season;
+import com.lucchetta.core.domain.league.League;
+import com.lucchetta.core.domain.league.LeagueMember;
+import com.lucchetta.core.domain.league.LeagueRole;
+import com.lucchetta.core.domain.league.LeagueVisibility;
 import com.lucchetta.core.domain.match.MatchFormat;
 import com.lucchetta.core.domain.match.MatchStatus;
 import com.lucchetta.core.domain.match.Participant;
 import com.lucchetta.core.domain.match.Score;
 import com.lucchetta.core.domain.match.Team;
 import com.lucchetta.core.exception.ConflictException;
+import com.lucchetta.core.exception.ForbiddenException;
 import com.lucchetta.core.exception.PossibleDuplicateMatchException;
 import com.lucchetta.core.scoring.GamesPlusWinBonusScoringPolicy;
 import com.lucchetta.core.scoring.NotCountedReason;
@@ -17,7 +22,7 @@ import com.lucchetta.core.support.DirectTransactionRunner;
 import com.lucchetta.core.support.InMemoryMatches;
 import com.lucchetta.core.support.InMemoryPlayers;
 import com.lucchetta.core.support.InMemorySeasons;
-import com.lucchetta.core.support.FixedAdministratorDirectory;
+import com.lucchetta.core.support.TestLeague;
 import com.lucchetta.core.support.InMemoryNotifications;
 import com.lucchetta.core.domain.notification.DevicePlatform;
 import com.lucchetta.core.domain.notification.Notification;
@@ -49,6 +54,7 @@ class RegisterMatchTest {
     private final InMemorySeasons seasons = new InMemorySeasons();
     private final InMemoryMatches matches = new InMemoryMatches();
     private final InMemoryNotifications notifications = new InMemoryNotifications();
+    private final TestLeague league = new TestLeague();
     private RegisterMatch useCase;
     private Player ana;
     private Player beto;
@@ -62,14 +68,16 @@ class RegisterMatchTest {
         beto = players.add("Beto");
         caio = players.add("Caio");
         dani = players.add("Dani");
+        league.members(ana, beto, caio, dani);
         caller = new AuthenticatedUser(ana.identity(), null, "Ana", false);
         Clock clock = Clock.fixed(NOW, ZoneOffset.UTC);
         MatchDetailsAssembler assembler = new MatchDetailsAssembler(seasons, players, new RankingEligibilityPolicy(),
                 new GamesPlusWinBonusScoringPolicy());
-        MatchNotifier notifier = new MatchNotifier(notifications, new FixedAdministratorDirectory(null),
+        MatchNotifier notifier = new MatchNotifier(notifications, league.leagues,
                 new MatchNotificationComposer(), clock);
-        useCase = new RegisterMatch(new GetOrCreateCurrentPlayer(players, clock), matches,
-                new MatchValidator(players), assembler, notifier, new PushDispatcher(notifications, notifications),
+        useCase = new RegisterMatch(league.access(new GetOrCreateCurrentPlayer(players, clock)), matches,
+                new MatchValidator(league.leagues), assembler, notifier,
+                new PushDispatcher(notifications, notifications),
                 new DirectTransactionRunner(), clock);
     }
 
@@ -82,8 +90,8 @@ class RegisterMatchTest {
                 Participant.player(Team.B, 1, caio.id()), Participant.guest(Team.B, 2, null));
         UUID id = UUID.randomUUID();
 
-        useCase.execute(caller, command(id, sixFour(), withGuest));
-        useCase.execute(caller, command(id, sixFour(), withGuest));
+        register(caller, command(id, sixFour(), withGuest));
+        register(caller, command(id, sixFour(), withGuest));
 
         assertThat(notifications.all()).extracting(Notification::recipientId)
                 .containsExactlyInAnyOrder(ana.id(), beto.id(), caio.id());
@@ -94,7 +102,7 @@ class RegisterMatchTest {
     void registersMatchStoringScoreAndAwardingPointsInsideSeason() {
         Season season = activeSeason();
 
-        RegisterMatch.Result result = useCase.execute(caller, command(UUID.randomUUID(), sixFour(), regularTeams()));
+        RegisterMatch.Result result = register(caller, command(UUID.randomUUID(), sixFour(), regularTeams()));
 
         MatchDetails details = result.details();
         assertThat(result.created()).isTrue();
@@ -117,7 +125,7 @@ class RegisterMatchTest {
                 Participant.player(Team.A, 1, ana.id()), Participant.player(Team.A, 2, beto.id()),
                 Participant.player(Team.B, 1, caio.id()), Participant.guest(Team.B, 2, "Zé"));
 
-        MatchDetails details = useCase.execute(caller, command(UUID.randomUUID(), sixFour(), withGuest)).details();
+        MatchDetails details = register(caller, command(UUID.randomUUID(), sixFour(), withGuest)).details();
 
         assertThat(matches.count()).isEqualTo(1);
         assertThat(details.eligibility().counted()).isFalse();
@@ -128,7 +136,7 @@ class RegisterMatchTest {
 
     @Test
     void matchWithoutSeasonIsStoredForHistoryOnly() {
-        MatchDetails details = useCase.execute(caller, command(UUID.randomUUID(), sixFour(), regularTeams())).details();
+        MatchDetails details = register(caller, command(UUID.randomUUID(), sixFour(), regularTeams())).details();
 
         assertThat(matches.count()).isEqualTo(1);
         assertThat(details.season()).isNull();
@@ -140,9 +148,9 @@ class RegisterMatchTest {
     void resendingTheSameMatchIsIdempotent() {
         activeSeason();
         UUID id = UUID.randomUUID();
-        useCase.execute(caller, command(id, sixFour(), regularTeams()));
+        register(caller, command(id, sixFour(), regularTeams()));
 
-        RegisterMatch.Result resend = useCase.execute(caller, command(id, sixFour(), regularTeams()));
+        RegisterMatch.Result resend = register(caller, command(id, sixFour(), regularTeams()));
 
         assertThat(resend.created()).isFalse();
         assertThat(matches.count()).isEqualTo(1);
@@ -153,17 +161,17 @@ class RegisterMatchTest {
     @Test
     void resendIsIdempotentEvenIfAnIdenticalMatchWouldLookLikeADuplicate() {
         UUID id = UUID.randomUUID();
-        useCase.execute(caller, command(id, sixFour(), regularTeams()));
+        register(caller, command(id, sixFour(), regularTeams()));
 
-        assertThat(useCase.execute(caller, command(id, sixFour(), regularTeams())).created()).isFalse();
+        assertThat(register(caller, command(id, sixFour(), regularTeams())).created()).isFalse();
     }
 
     @Test
     void sameIdWithDifferentContentIsAConflict() {
         UUID id = UUID.randomUUID();
-        useCase.execute(caller, command(id, sixFour(), regularTeams()));
+        register(caller, command(id, sixFour(), regularTeams()));
 
-        assertThatThrownBy(() -> useCase.execute(caller,
+        assertThatThrownBy(() -> register(caller,
                 command(id, new Score(MatchFormat.STANDARD, 6, 3, null, null), regularTeams())))
                 .isInstanceOf(ConflictException.class)
                 .hasMessage("MATCH_ID_CONFLICT");
@@ -173,12 +181,12 @@ class RegisterMatchTest {
     @Test
     void lateResendAfterAnAdministrativeChangeReturnsTheCurrentState() {
         UUID id = UUID.randomUUID();
-        useCase.execute(caller, command(id, sixFour(), regularTeams()));
+        register(caller, command(id, sixFour(), regularTeams()));
         var stored = matches.findById(id).orElseThrow();
         matches.update(stored.corrected(stored.playedAt(), new Score(MatchFormat.STANDARD, 6, 2, null, null),
                 stored.participants(), NOW));
 
-        RegisterMatch.Result resend = useCase.execute(caller, command(id, sixFour(), regularTeams()));
+        RegisterMatch.Result resend = register(caller, command(id, sixFour(), regularTeams()));
 
         assertThat(resend.created()).isFalse();
         assertThat(resend.details().match().score().teamBGames()).isEqualTo(2);
@@ -188,12 +196,12 @@ class RegisterMatchTest {
     @Test
     void sameTeamsSameDayRequireConfirmation() {
         UUID first = UUID.randomUUID();
-        useCase.execute(caller, command(first, sixFour(), regularTeams()));
+        register(caller, command(first, sixFour(), regularTeams()));
         List<Participant> swappedSides = List.of(
                 Participant.player(Team.A, 1, dani.id()), Participant.player(Team.A, 2, caio.id()),
                 Participant.player(Team.B, 1, beto.id()), Participant.player(Team.B, 2, ana.id()));
 
-        assertThatThrownBy(() -> useCase.execute(caller, command(UUID.randomUUID(), sixFour(), swappedSides)))
+        assertThatThrownBy(() -> register(caller, command(UUID.randomUUID(), sixFour(), swappedSides)))
                 .isInstanceOfSatisfying(PossibleDuplicateMatchException.class,
                         e -> assertThat(e.existingMatchIds()).containsExactly(first));
         assertThat(matches.count()).isEqualTo(1);
@@ -201,9 +209,9 @@ class RegisterMatchTest {
 
     @Test
     void confirmedDuplicateIsRegistered() {
-        useCase.execute(caller, command(UUID.randomUUID(), sixFour(), regularTeams()));
+        register(caller, command(UUID.randomUUID(), sixFour(), regularTeams()));
 
-        RegisterMatch.Result second = useCase.execute(caller, new RegisterMatch.Command(
+        RegisterMatch.Result second = register(caller, new RegisterMatch.Command(
                 UUID.randomUUID(), PLAYED.plusSeconds(3600), sixFour(), regularTeams(), true));
 
         assertThat(second.created()).isTrue();
@@ -212,13 +220,13 @@ class RegisterMatchTest {
 
     @Test
     void differentPairsOrDifferentDayAreNotDuplicates() {
-        useCase.execute(caller, command(UUID.randomUUID(), sixFour(), regularTeams()));
+        register(caller, command(UUID.randomUUID(), sixFour(), regularTeams()));
         List<Participant> newPairs = List.of(
                 Participant.player(Team.A, 1, ana.id()), Participant.player(Team.A, 2, caio.id()),
                 Participant.player(Team.B, 1, beto.id()), Participant.player(Team.B, 2, dani.id()));
 
-        useCase.execute(caller, command(UUID.randomUUID(), sixFour(), newPairs));
-        useCase.execute(caller, new RegisterMatch.Command(UUID.randomUUID(), PLAYED.minus(Duration.ofDays(7)),
+        register(caller, command(UUID.randomUUID(), sixFour(), newPairs));
+        register(caller, new RegisterMatch.Command(UUID.randomUUID(), PLAYED.minus(Duration.ofDays(7)),
                 sixFour(), regularTeams(), false));
 
         assertThat(matches.count()).isEqualTo(3);
@@ -231,34 +239,79 @@ class RegisterMatchTest {
         RegisterMatch.Command withinTolerance = new RegisterMatch.Command(UUID.randomUUID(),
                 NOW.plus(Duration.ofMinutes(10)), sixFour(), regularTeams(), false);
 
-        assertThatThrownBy(() -> useCase.execute(caller, tooLate)).hasMessage("MATCH_IN_FUTURE");
-        assertThat(useCase.execute(caller, withinTolerance).created()).isTrue();
+        assertThatThrownBy(() -> register(caller, tooLate)).hasMessage("MATCH_IN_FUTURE");
+        assertThat(register(caller, withinTolerance).created()).isTrue();
     }
 
     @Test
-    void unknownPlayersAreRejected() {
+    void playersWhoAreNotMembersAreRejected() {
         List<Participant> stranger = List.of(
                 Participant.player(Team.A, 1, ana.id()), Participant.player(Team.A, 2, UUID.randomUUID()),
                 Participant.player(Team.B, 1, caio.id()), Participant.player(Team.B, 2, dani.id()));
 
-        assertThatThrownBy(() -> useCase.execute(caller, command(UUID.randomUUID(), sixFour(), stranger)))
-                .hasMessage("UNKNOWN_PLAYER");
+        assertThatThrownBy(() -> register(caller, command(UUID.randomUUID(), sixFour(), stranger)))
+                .hasMessage("PLAYER_NOT_LEAGUE_MEMBER");
         assertThat(matches.count()).isZero();
     }
 
     @Test
     void callerDoesNotNeedToBeAParticipant() {
         Player eva = players.add("Eva");
+        league.members(eva);
         AuthenticatedUser evaCaller = new AuthenticatedUser(eva.identity(), null, "Eva", false);
 
-        MatchDetails details = useCase.execute(evaCaller, command(UUID.randomUUID(), sixFour(), regularTeams())).details();
+        MatchDetails details = register(evaCaller, command(UUID.randomUUID(), sixFour(), regularTeams())).details();
 
         assertThat(details.match().registeredBy()).isEqualTo(eva.id());
     }
 
+    @Test
+    void onlyMembersRegisterMatchesInTheLeague() {
+        Player outsider = players.add("Fora");
+        AuthenticatedUser outsiderCaller = new AuthenticatedUser(outsider.identity(), null, "Fora", false);
+
+        assertThatThrownBy(() -> register(outsiderCaller, command(UUID.randomUUID(), sixFour(), regularTeams())))
+                .isInstanceOf(ForbiddenException.class);
+        assertThat(matches.count()).isZero();
+    }
+
+    @Test
+    void leagueAdministratorsAreNotifiedOfEveryMatch() {
+        Player eva = players.add("Eva");
+        league.administrator(eva);
+
+        UUID id = UUID.randomUUID();
+        register(caller, command(id, sixFour(), regularTeams()));
+
+        assertThat(notifications.all()).extracting(Notification::recipientId)
+                .containsExactlyInAnyOrder(ana.id(), beto.id(), caio.id(), dani.id(), eva.id());
+        assertThat(notifications.of(eva.id()).getFirst().leagueId()).isEqualTo(TestLeague.ID);
+        assertThat(notifications.of(eva.id()).getFirst().matchId()).isEqualTo(id);
+    }
+
+    @Test
+    void matchIdOfAnotherLeagueIsAConflict() {
+        UUID id = UUID.randomUUID();
+        register(caller, command(id, sixFour(), regularTeams()));
+        UUID otherLeague = UUID.randomUUID();
+        league.leagues.add(new League(otherLeague, "Outra Liga", null,
+                LeagueVisibility.PUBLIC, null, null, NOW, NOW, null, null, 0));
+        league.leagues.insert(new LeagueMember(otherLeague, ana.id(),
+                LeagueRole.ADMIN, NOW));
+
+        assertThatThrownBy(() -> useCase.execute(caller, otherLeague, command(id, sixFour(), List.of(
+                Participant.player(Team.A, 1, ana.id()), Participant.guest(Team.A, 2, null),
+                Participant.guest(Team.B, 1, null), Participant.guest(Team.B, 2, null)))))
+                .hasMessage("MATCH_ID_CONFLICT");
+    }
+
+    private RegisterMatch.Result register(AuthenticatedUser user, RegisterMatch.Command command) {
+        return useCase.execute(user, TestLeague.ID, command);
+    }
+
     private Season activeSeason() {
         Instant created = Instant.parse("2026-09-01T12:00:00Z");
-        return seasons.add(new Season(UUID.randomUUID(), "Primavera", LocalDate.of(2026, 10, 1),
+        return seasons.add(new Season(UUID.randomUUID(), TestLeague.ID, "Primavera", LocalDate.of(2026, 10, 1),
                 LocalDate.of(2026, 12, 31), ana.id(), created, created));
     }
 

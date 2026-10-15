@@ -7,6 +7,7 @@ import com.lucchetta.core.domain.match.MatchStatus;
 import com.lucchetta.core.domain.match.Participant;
 import com.lucchetta.core.domain.match.Score;
 import com.lucchetta.core.domain.match.Team;
+import com.lucchetta.core.support.TestLeague;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.CsvSource;
@@ -21,8 +22,8 @@ import static org.assertj.core.api.Assertions.assertThat;
 class ScoringAndEligibilityTest {
 
     private static final Instant PLAYED = Instant.parse("2026-10-11T12:00:00Z");
-    private static final Season SEASON = new Season(UUID.randomUUID(), "Primavera", LocalDate.of(2026, 10, 1),
-            LocalDate.of(2026, 12, 31), UUID.randomUUID(), PLAYED, PLAYED);
+    private static final Season SEASON = new Season(UUID.randomUUID(), TestLeague.ID, "Primavera",
+            LocalDate.of(2026, 10, 1), LocalDate.of(2026, 12, 31), UUID.randomUUID(), PLAYED, PLAYED);
 
     private final ScoringPolicy scoring = new GamesPlusWinBonusScoringPolicy();
     private final RankingEligibilityPolicy eligibility = new RankingEligibilityPolicy();
@@ -76,8 +77,8 @@ class ScoringAndEligibilityTest {
 
     @Test
     void reasonPrecedenceIsVoidedThenGuestThenNoSeason() {
-        Match voidedWithGuest = new Match(UUID.randomUUID(), PLAYED, sixFour(), withGuest(), MatchStatus.VOIDED,
-                UUID.randomUUID(), PLAYED, PLAYED);
+        Match voidedWithGuest = new Match(UUID.randomUUID(), TestLeague.ID, PLAYED, sixFour(), withGuest(),
+                MatchStatus.VOIDED, UUID.randomUUID(), PLAYED, PLAYED);
 
         assertThat(eligibility.evaluate(voidedWithGuest, null).reason()).isEqualTo(NotCountedReason.VOIDED);
         assertThat(eligibility.evaluate(match(sixFour(), withGuest()), null).reason())
@@ -99,7 +100,7 @@ class ScoringAndEligibilityTest {
     }
 
     private static Match match(Score score, List<Participant> participants) {
-        return new Match(UUID.randomUUID(), PLAYED, score, participants, MatchStatus.VALID, UUID.randomUUID(),
-                PLAYED, PLAYED);
+        return new Match(UUID.randomUUID(), TestLeague.ID, PLAYED, score, participants, MatchStatus.VALID,
+                UUID.randomUUID(), PLAYED, PLAYED);
     }
 }

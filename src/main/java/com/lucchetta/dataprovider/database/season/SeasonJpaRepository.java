@@ -11,22 +11,29 @@ import java.util.UUID;
 
 interface SeasonJpaRepository extends JpaRepository<SeasonEntity, UUID> {
 
-    List<SeasonEntity> findAllByOrderByStartDateDesc();
+    List<SeasonEntity> findAllByLeagueIdOrderByStartDateDesc(UUID leagueId);
 
-    @Query("select s from SeasonEntity s where s.startDate <= :date and s.endDate >= :date")
-    Optional<SeasonEntity> findContaining(@Param("date") LocalDate date);
+    @Query("""
+            select s from SeasonEntity s
+            where s.leagueId = :leagueId and s.startDate <= :date and s.endDate >= :date
+            """)
+    Optional<SeasonEntity> findContaining(@Param("leagueId") UUID leagueId, @Param("date") LocalDate date);
 
     @Query("""
             select count(s) > 0 from SeasonEntity s
-            where s.startDate <= :endDate and s.endDate >= :startDate
+            where s.leagueId = :leagueId and s.startDate <= :endDate and s.endDate >= :startDate
             """)
-    boolean existsOverlapping(@Param("startDate") LocalDate startDate, @Param("endDate") LocalDate endDate);
+    boolean existsOverlapping(@Param("leagueId") UUID leagueId,
+                              @Param("startDate") LocalDate startDate,
+                              @Param("endDate") LocalDate endDate);
 
     @Query("""
             select count(s) > 0 from SeasonEntity s
-            where s.startDate <= :endDate and s.endDate >= :startDate and s.id <> :excludedId
+            where s.leagueId = :leagueId and s.startDate <= :endDate and s.endDate >= :startDate
+              and s.id <> :excludedId
             """)
-    boolean existsOverlappingExcluding(@Param("startDate") LocalDate startDate,
+    boolean existsOverlappingExcluding(@Param("leagueId") UUID leagueId,
+                                       @Param("startDate") LocalDate startDate,
                                        @Param("endDate") LocalDate endDate,
                                        @Param("excludedId") UUID excludedId);
 }

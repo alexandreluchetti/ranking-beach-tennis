@@ -30,8 +30,11 @@ public class InMemorySeasons implements SeasonRepository, SeasonAuditLog {
     }
 
     @Override
-    public List<Season> findAll() {
-        return seasons.values().stream().sorted(Comparator.comparing(Season::startDate).reversed()).toList();
+    public List<Season> findAll(UUID leagueId) {
+        return seasons.values().stream()
+                .filter(s -> s.leagueId().equals(leagueId))
+                .sorted(Comparator.comparing(Season::startDate).reversed())
+                .toList();
     }
 
     @Override
@@ -40,15 +43,17 @@ public class InMemorySeasons implements SeasonRepository, SeasonAuditLog {
     }
 
     @Override
-    public Optional<Season> findContaining(LocalDate date) {
+    public Optional<Season> findContaining(UUID leagueId, LocalDate date) {
         return seasons.values().stream()
+                .filter(s -> s.leagueId().equals(leagueId))
                 .filter(s -> !date.isBefore(s.startDate()) && !date.isAfter(s.endDate()))
                 .findFirst();
     }
 
     @Override
-    public boolean existsOverlapping(LocalDate startDate, LocalDate endDate, UUID excludedId) {
+    public boolean existsOverlapping(UUID leagueId, LocalDate startDate, LocalDate endDate, UUID excludedId) {
         return seasons.values().stream()
+                .filter(s -> s.leagueId().equals(leagueId))
                 .filter(s -> !s.id().equals(excludedId))
                 .anyMatch(s -> s.overlaps(startDate, endDate));
     }

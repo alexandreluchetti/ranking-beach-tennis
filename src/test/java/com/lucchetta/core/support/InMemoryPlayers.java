@@ -39,7 +39,6 @@ public class InMemoryPlayers implements PlayerRepository {
         return ids.stream().map(players::get).filter(p -> p != null).toList();
     }
 
-    @Override
     public List<Player> findAll() {
         return List.copyOf(players.values());
     }

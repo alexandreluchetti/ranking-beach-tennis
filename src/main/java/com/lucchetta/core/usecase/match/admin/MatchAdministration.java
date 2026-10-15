@@ -10,7 +10,6 @@ import com.lucchetta.core.domain.match.Participant;
 import com.lucchetta.core.domain.match.Score;
 import com.lucchetta.core.domain.notification.Notification;
 import com.lucchetta.core.exception.ConflictException;
-import com.lucchetta.core.exception.ForbiddenException;
 import com.lucchetta.core.exception.NotFoundException;
 import com.lucchetta.core.exception.RuleViolationException;
 import com.lucchetta.core.port.MatchAuditLog;
@@ -21,7 +20,7 @@ import com.lucchetta.core.usecase.match.MatchDetailsAssembler;
 import com.lucchetta.core.usecase.match.MatchValidator;
 import com.lucchetta.core.usecase.notification.MatchNotifier;
 import com.lucchetta.core.usecase.notification.PushDispatcher;
-import com.lucchetta.core.usecase.player.GetOrCreateCurrentPlayer;
+import com.lucchetta.core.usecase.league.LeagueAccess;
 
 import java.time.Clock;
 import java.time.Instant;
@@ -29,7 +28,8 @@ import java.util.List;
 import java.util.UUID;
 
 /**
- * Administrator-only operations on registered matches: correction, void and void reversal.
+ * League administrator operations on a league's matches (decision D-018; the system administrator
+ * may act in any league): correction, void and void reversal.
  * Every change is audited with the state before and after. Points and statistics are derived
  * from the stored matches (D-007), so they follow automatically and are never applied twice.
  */
@@ -53,7 +53,7 @@ public class MatchAdministration {
         }
     }
 
-    private final GetOrCreateCurrentPlayer getOrCreateCurrentPlayer;
+    private final LeagueAccess leagueAccess;
     private final MatchRepository matchRepository;
     private final MatchAuditLog auditLog;
     private final MatchValidator validator;
@@ -63,7 +63,7 @@ public class MatchAdministration {
     private final TransactionRunner transactionRunner;
     private final Clock clock;
 
-    public MatchAdministration(GetOrCreateCurrentPlayer getOrCreateCurrentPlayer,
+    public MatchAdministration(LeagueAccess leagueAccess,
                                MatchRepository matchRepository,
                                MatchAuditLog auditLog,
                                MatchValidator validator,
@@ -72,7 +72,7 @@ public class MatchAdministration {
                                PushDispatcher pushDispatcher,
                                TransactionRunner transactionRunner,
                                Clock clock) {
-        this.getOrCreateCurrentPlayer = getOrCreateCurrentPlayer;
+        this.leagueAccess = leagueAccess;
         this.matchRepository = matchRepository;
         this.auditLog = auditLog;
         this.validator = validator;
@@ -87,36 +87,37 @@ public class MatchAdministration {
      * Corrects date, format, score and participants. May change ranking eligibility (e.g. a guest
      * replaced by a registered player). Voided matches must be restored before being corrected.
      */
-    public Outcome correct(AuthenticatedUser user, Correction correction) {
+    public Outcome correct(AuthenticatedUser user, UUID leagueId, Correction correction) {
         String reason = Justification.optional(correction.reason());
-        return change(user, correction.matchId(), MatchAuditEntry.Action.CORRECTED, reason, (current, now, admin) -> {
-            if (current.status() == MatchStatus.VOIDED) {
-                throw new RuleViolationException("MATCH_VOIDED");
-            }
-            if (current.version() != correction.expectedVersion()) {
-                throw new ConflictException("MATCH_MODIFIED");
-            }
-            Match corrected = current.corrected(correction.playedAt(), correction.score(),
-                    correction.participants(), now);
-            if (corrected.hasSameContentAs(current)) {
-                return current;
-            }
-            validator.validate(corrected, now);
-            return corrected;
-        });
+        return change(user, leagueId, correction.matchId(), MatchAuditEntry.Action.CORRECTED, reason,
+                (current, now, admin) -> {
+                    if (current.status() == MatchStatus.VOIDED) {
+                        throw new RuleViolationException("MATCH_VOIDED");
+                    }
+                    if (current.version() != correction.expectedVersion()) {
+                        throw new ConflictException("MATCH_MODIFIED");
+                    }
+                    Match corrected = current.corrected(correction.playedAt(), correction.score(),
+                            correction.participants(), now);
+                    if (corrected.hasSameContentAs(current)) {
+                        return current;
+                    }
+                    validator.validate(corrected, now);
+                    return corrected;
+                });
     }
 
     /** Voids a match: it stays in the history but no longer counts for anything. */
-    public Outcome voidMatch(AuthenticatedUser user, UUID matchId, String reason) {
+    public Outcome voidMatch(AuthenticatedUser user, UUID leagueId, UUID matchId, String reason) {
         String justification = Justification.required(reason);
-        return change(user, matchId, MatchAuditEntry.Action.VOIDED, justification,
+        return change(user, leagueId, matchId, MatchAuditEntry.Action.VOIDED, justification,
                 (current, now, admin) -> current.voided(justification, admin, now));
     }
 
     /** Restores a voided match; it counts again according to the current rules. */
-    public Outcome revertVoid(AuthenticatedUser user, UUID matchId, String reason) {
+    public Outcome revertVoid(AuthenticatedUser user, UUID leagueId, UUID matchId, String reason) {
         String justification = Justification.required(reason);
-        return change(user, matchId, MatchAuditEntry.Action.VOID_REVERTED, justification,
+        return change(user, leagueId, matchId, MatchAuditEntry.Action.VOID_REVERTED, justification,
                 (current, now, admin) -> current.voidReverted(now));
     }
 
@@ -125,12 +126,12 @@ public class MatchAdministration {
         Match apply(Match current, Instant now, UUID adminId);
     }
 
-    private Outcome change(AuthenticatedUser user, UUID matchId, MatchAuditEntry.Action action, String reason,
-                           Change change) {
-        if (!user.admin()) {
-            throw new ForbiddenException();
-        }
-        Player admin = getOrCreateCurrentPlayer.execute(user);
+    private Outcome change(AuthenticatedUser user, UUID leagueId, UUID matchId, MatchAuditEntry.Action action,
+                           String reason, Change change) {
+        LeagueAccess.Context context = leagueAccess.context(user, leagueId);
+        LeagueAccess.requireAdministrator(context);
+        LeagueAccess.requireNotArchived(context.league());
+        Player admin = context.player();
         Instant now = clock.instant();
         record Result(Outcome outcome, List<Notification> notifications) {
         }

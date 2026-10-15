@@ -1,5 +1,6 @@
 package com.lucchetta.entrypoint.rest.match;
 
+import com.lucchetta.core.domain.AuthenticatedUser;
 import com.lucchetta.core.domain.BusinessCalendar;
 import com.lucchetta.core.domain.match.MatchAuditEntry;
 import com.lucchetta.core.domain.match.Score;
@@ -7,6 +8,7 @@ import com.lucchetta.core.usecase.match.MatchOutcome;
 import com.lucchetta.core.usecase.match.QueryMatch;
 import com.lucchetta.core.usecase.match.RegisterMatch;
 import com.lucchetta.core.usecase.match.SearchMatches;
+import com.lucchetta.entrypoint.rest.league.LeagueScope;
 import com.lucchetta.entrypoint.security.CurrentUserProvider;
 import io.swagger.v3.oas.annotations.Operation;
 import jakarta.validation.Valid;
@@ -27,8 +29,12 @@ import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
 
+/**
+ * Matches of a league ({@code /api/leagues/{leagueId}/matches}); the paths without a league act on
+ * the "Beach Tennis Arena" league (see {@link LeagueScope}).
+ */
 @RestController
-@RequestMapping("/api/matches")
+@RequestMapping({"/api/matches", "/api/leagues/{leagueId}/matches"})
 public class MatchController {
 
     public record MatchPageResponse(List<MatchResponse> items, int page, int size, boolean hasNext) {
@@ -40,13 +46,15 @@ public class MatchController {
     }
 
     private final CurrentUserProvider currentUserProvider;
+    private final LeagueScope leagueScope;
     private final RegisterMatch registerMatch;
     private final QueryMatch queryMatch;
     private final SearchMatches searchMatches;
 
-    public MatchController(CurrentUserProvider currentUserProvider, RegisterMatch registerMatch,
-                           QueryMatch queryMatch, SearchMatches searchMatches) {
+    public MatchController(CurrentUserProvider currentUserProvider, LeagueScope leagueScope,
+                           RegisterMatch registerMatch, QueryMatch queryMatch, SearchMatches searchMatches) {
         this.currentUserProvider = currentUserProvider;
+        this.leagueScope = leagueScope;
         this.registerMatch = registerMatch;
         this.queryMatch = queryMatch;
         this.searchMatches = searchMatches;
@@ -56,26 +64,30 @@ public class MatchController {
     @Operation(summary = "Registers a finished match",
             description = "Idempotent by id: 201 when created, 200 when the same match was already registered. "
                     + "409 POSSIBLE_DUPLICATE_MATCH asks the user to confirm (resend with confirmPossibleDuplicate).")
-    public ResponseEntity<MatchResponse> register(@Valid @RequestBody RegisterMatchRequest request) {
+    public ResponseEntity<MatchResponse> register(@PathVariable(required = false) UUID leagueId,
+                                                  @Valid @RequestBody RegisterMatchRequest request) {
         Score score = new Score(request.format(), request.teamAGames(), request.teamBGames(),
                 request.tiebreakTeamAPoints(), request.tiebreakTeamBPoints());
         RegisterMatch.Command command = new RegisterMatch.Command(request.id(), request.playedAt().toInstant(), score,
                 MatchRequestMapper.participants(request.teamA(), request.teamB()), request.duplicateConfirmed());
-        RegisterMatch.Result result = registerMatch.execute(currentUserProvider.get(), command);
+        AuthenticatedUser user = currentUserProvider.get();
+        RegisterMatch.Result result = registerMatch.execute(user, leagueScope.resolve(leagueId, user), command);
         return ResponseEntity.status(result.created() ? HttpStatus.CREATED : HttpStatus.OK)
                 .body(MatchResponse.from(result.details()));
     }
 
     @GetMapping("/{id}")
     @Operation(summary = "Returns one match")
-    public MatchResponse get(@PathVariable UUID id) {
-        return MatchResponse.from(queryMatch.byId(id));
+    public MatchResponse get(@PathVariable(required = false) UUID leagueId, @PathVariable UUID id) {
+        AuthenticatedUser user = currentUserProvider.get();
+        return MatchResponse.from(queryMatch.byId(user, leagueScope.resolve(leagueId, user), id));
     }
 
     @GetMapping("/{id}/audit")
     @Operation(summary = "Administrative history of a match (corrections, voids, reversals), oldest first")
-    public List<AuditEntryResponse> audit(@PathVariable UUID id) {
-        return queryMatch.auditTrail(id).stream()
+    public List<AuditEntryResponse> audit(@PathVariable(required = false) UUID leagueId, @PathVariable UUID id) {
+        AuthenticatedUser user = currentUserProvider.get();
+        return queryMatch.auditTrail(user, leagueScope.resolve(leagueId, user), id).stream()
                 .map(r -> new AuditEntryResponse(r.action(), r.performedBy(),
                         OffsetDateTime.ofInstant(r.performedAt(), BusinessCalendar.ZONE), r.reason(), r.before(),
                         r.after()))
@@ -86,14 +98,16 @@ public class MatchController {
     @Operation(summary = "Match history, most recent first",
             description = "Filters can be combined. Dates are inclusive (Brasília). "
                     + "outcome may be repeated: COUNTED, NOT_COUNTED, VOIDED (default: all).")
-    public MatchPageResponse search(@RequestParam(required = false) UUID seasonId,
+    public MatchPageResponse search(@PathVariable(required = false) UUID leagueId,
+                                    @RequestParam(required = false) UUID seasonId,
                                     @RequestParam(required = false) UUID playerId,
                                     @RequestParam(required = false) LocalDate from,
                                     @RequestParam(required = false) LocalDate to,
                                     @RequestParam(required = false) Set<MatchOutcome> outcome,
                                     @RequestParam(defaultValue = "0") int page,
                                     @RequestParam(defaultValue = "20") int size) {
-        SearchMatches.Page result = searchMatches.execute(
+        AuthenticatedUser user = currentUserProvider.get();
+        SearchMatches.Page result = searchMatches.execute(user, leagueScope.resolve(leagueId, user),
                 new SearchMatches.Criteria(seasonId, playerId, from, to, outcome, page, size));
         return new MatchPageResponse(result.items().stream().map(MatchResponse::from).toList(),
                 result.page(), result.size(), result.hasNext());

@@ -16,15 +16,14 @@ import com.lucchetta.core.exception.NotFoundException;
 import com.lucchetta.core.scoring.NotCountedReason;
 import com.lucchetta.core.stats.RankingEntry;
 import com.lucchetta.core.support.DirectTransactionRunner;
-import com.lucchetta.core.support.FixedAdministratorDirectory;
 import com.lucchetta.core.support.InMemoryMatchAudit;
 import com.lucchetta.core.support.InMemoryNotifications;
+import com.lucchetta.core.support.TestLeague;
 import com.lucchetta.core.usecase.notification.MatchNotificationComposer;
 import com.lucchetta.core.usecase.notification.MatchNotifier;
 import com.lucchetta.core.usecase.notification.PushDispatcher;
 import com.lucchetta.core.usecase.match.MatchDetails;
 import com.lucchetta.core.usecase.match.MatchValidator;
-import com.lucchetta.core.usecase.player.GetOrCreateCurrentPlayer;
 import com.lucchetta.core.usecase.ranking.GetSeasonRanking;
 import com.lucchetta.core.usecase.ranking.RankingFixture;
 import org.junit.jupiter.api.Test;
@@ -42,24 +41,28 @@ class MatchAdministrationTest {
     private final RankingFixture world = new RankingFixture();
     private final InMemoryMatchAudit audit = new InMemoryMatchAudit();
     private final Player adminPlayer = world.players.add("Admin");
-    private final AuthenticatedUser admin = new AuthenticatedUser(adminPlayer.identity(), null, "Admin", true);
+    /** A league administrator, not the system administrator. */
+    private final AuthenticatedUser admin = new AuthenticatedUser(adminPlayer.identity(), null, "Admin", false);
     private final AuthenticatedUser regular = new AuthenticatedUser(world.ana.identity(), null, "Ana", false);
     private final InMemoryNotifications notifications = new InMemoryNotifications();
     private final MatchAdministration administration = new MatchAdministration(
-            new GetOrCreateCurrentPlayer(world.players, RankingFixture.CLOCK), world.matches, audit,
-            new MatchValidator(world.players), world.assembler,
-            new MatchNotifier(notifications, new FixedAdministratorDirectory(adminPlayer.id()),
+            world.access, world.matches, audit, new MatchValidator(world.league.leagues), world.assembler,
+            new MatchNotifier(notifications, world.league.leagues,
                     new MatchNotificationComposer(), RankingFixture.CLOCK),
             new PushDispatcher(notifications, notifications), new DirectTransactionRunner(), RankingFixture.CLOCK);
-    private final GetSeasonRanking ranking = new GetSeasonRanking(world.querySeasons, world.matches, world.players,
-            world.assembler);
+    private final GetSeasonRanking ranking = new GetSeasonRanking(world.access, world.querySeasons, world.matches,
+            world.players, world.league.leagues, world.assembler);
+
+    {
+        world.league.administrator(adminPlayer);
+    }
 
     /** Ana+Beto beat Caio+Dani 6-4 in the active season: 9 points each for Ana and Beto. */
     private final Match match = world.match(LocalDate.of(2026, 10, 4), 6, 4);
 
     @Test
     void correctionChangesScoreRecalculatesPointsAndIsAudited() {
-        MatchAdministration.Outcome outcome = administration.correct(admin,
+        MatchAdministration.Outcome outcome = correct(admin,
                 correction(match.version(), new Score(MatchFormat.STANDARD, 6, 2, null, null), match.participants(),
                         "Placar anotado errado"));
 
@@ -85,7 +88,7 @@ class MatchAdministrationTest {
                 world.anaAndGuestVsCaioAndDani());
         assertThat(pointsOf(world.ana)).isEqualTo(9);
 
-        MatchDetails corrected = administration.correct(admin, new MatchAdministration.Correction(guestMatch.id(),
+        MatchDetails corrected = correct(admin, new MatchAdministration.Correction(guestMatch.id(),
                 guestMatch.version(), guestMatch.playedAt(), guestMatch.score(), List.of(
                 Participant.player(Team.A, 1, world.ana.id()), Participant.player(Team.A, 2, world.beto.id()),
                 Participant.player(Team.B, 1, world.caio.id()), Participant.player(Team.B, 2, world.dani.id())),
@@ -99,20 +102,20 @@ class MatchAdministrationTest {
 
     @Test
     void correctionMayMoveTheMatchOutOfTheSeason() {
-        administration.correct(admin, new MatchAdministration.Correction(match.id(), match.version(),
+        correct(admin, new MatchAdministration.Correction(match.id(), match.version(),
                 LocalDate.of(2026, 9, 20).atStartOfDay(RankingFixture.BRASILIA).toInstant().plus(Duration.ofHours(10)),
                 match.score(), match.participants(), "Data errada"));
 
         assertThat(pointsOf(world.ana)).isZero();
-        assertThat(ranking.bySeasonId(world.pastSeason.id()).entries().getFirst().stats().points()).isEqualTo(9);
+        assertThat(seasonRanking(world.pastSeason.id()).entries().getFirst().stats().points()).isEqualTo(9);
     }
 
     @Test
     void staleVersionIsRejectedWithoutChanges() {
-        administration.correct(admin, correction(match.version(), new Score(MatchFormat.STANDARD, 6, 2, null, null),
+        correct(admin, correction(match.version(), new Score(MatchFormat.STANDARD, 6, 2, null, null),
                 match.participants(), null));
 
-        assertThatThrownBy(() -> administration.correct(admin, correction(match.version(),
+        assertThatThrownBy(() -> correct(admin, correction(match.version(),
                 new Score(MatchFormat.STANDARD, 6, 3, null, null), match.participants(), null)))
                 .isInstanceOf(ConflictException.class)
                 .hasMessage("MATCH_MODIFIED");
@@ -122,7 +125,7 @@ class MatchAdministrationTest {
 
     @Test
     void correctionWithoutChangesIsNotAudited() {
-        MatchAdministration.Outcome outcome = administration.correct(admin,
+        MatchAdministration.Outcome outcome = correct(admin,
                 correction(match.version(), match.score(), match.participants(), "nada"));
 
         assertThat(outcome.changed()).isFalse();
@@ -132,11 +135,11 @@ class MatchAdministrationTest {
 
     @Test
     void correctionAppliesRegistrationRules() {
-        assertThatThrownBy(() -> administration.correct(admin, correction(match.version(), match.score(), List.of(
+        assertThatThrownBy(() -> correct(admin, correction(match.version(), match.score(), List.of(
                 Participant.player(Team.A, 1, world.ana.id()), Participant.player(Team.A, 2, UUID.randomUUID()),
                 Participant.player(Team.B, 1, world.caio.id()), Participant.player(Team.B, 2, world.dani.id())), null)))
-                .hasMessage("UNKNOWN_PLAYER");
-        assertThatThrownBy(() -> administration.correct(admin, new MatchAdministration.Correction(match.id(),
+                .hasMessage("PLAYER_NOT_LEAGUE_MEMBER");
+        assertThatThrownBy(() -> correct(admin, new MatchAdministration.Correction(match.id(),
                 match.version(), RankingFixture.NOW.plus(Duration.ofHours(1)), match.score(), match.participants(),
                 null)))
                 .hasMessage("MATCH_IN_FUTURE");
@@ -145,7 +148,7 @@ class MatchAdministrationTest {
 
     @Test
     void voidRemovesPointsAndStatisticsKeepsHistoryAndIsAudited() {
-        MatchDetails voided = administration.voidMatch(admin, match.id(), "  Partida de treino  ").details();
+        MatchDetails voided = voidMatch(admin, match.id(), "  Partida de treino  ").details();
 
         assertThat(voided.match().status()).isEqualTo(MatchStatus.VOIDED);
         assertThat(voided.match().voiding().reason()).isEqualTo("Partida de treino");
@@ -164,18 +167,18 @@ class MatchAdministrationTest {
 
     @Test
     void voidAndRevertRequireReasonAndValidState() {
-        assertThatThrownBy(() -> administration.voidMatch(admin, match.id(), "  ")).hasMessage("REASON_REQUIRED");
-        assertThatThrownBy(() -> administration.voidMatch(admin, match.id(), "x".repeat(501)))
+        assertThatThrownBy(() -> voidMatch(admin, match.id(), "  ")).hasMessage("REASON_REQUIRED");
+        assertThatThrownBy(() -> voidMatch(admin, match.id(), "x".repeat(501)))
                 .hasMessage("REASON_TOO_LONG");
-        assertThatThrownBy(() -> administration.revertVoid(admin, match.id(), "motivo"))
+        assertThatThrownBy(() -> revertVoid(admin, match.id(), "motivo"))
                 .hasMessage("MATCH_NOT_VOIDED");
 
-        administration.voidMatch(admin, match.id(), "motivo");
+        voidMatch(admin, match.id(), "motivo");
 
-        assertThatThrownBy(() -> administration.voidMatch(admin, match.id(), "de novo"))
+        assertThatThrownBy(() -> voidMatch(admin, match.id(), "de novo"))
                 .hasMessage("MATCH_ALREADY_VOIDED");
-        assertThatThrownBy(() -> administration.revertVoid(admin, match.id(), null)).hasMessage("REASON_REQUIRED");
-        assertThatThrownBy(() -> administration.correct(admin, correction(match.version() + 1, match.score(),
+        assertThatThrownBy(() -> revertVoid(admin, match.id(), null)).hasMessage("REASON_REQUIRED");
+        assertThatThrownBy(() -> correct(admin, correction(match.version() + 1, match.score(),
                 match.participants(), null)))
                 .hasMessage("MATCH_VOIDED");
     }
@@ -183,9 +186,9 @@ class MatchAdministrationTest {
     @Test
     void revertRestoresPointsAndRepeatedCyclesNeverDuplicateThem() {
         for (int i = 0; i < 3; i++) {
-            administration.voidMatch(admin, match.id(), "anulação " + i);
+            voidMatch(admin, match.id(), "anulação " + i);
             assertThat(pointsOf(world.ana)).isZero();
-            MatchDetails restored = administration.revertVoid(admin, match.id(), "reversão " + i).details();
+            MatchDetails restored = revertVoid(admin, match.id(), "reversão " + i).details();
             assertThat(restored.match().voiding()).isNull();
             assertThat(restored.eligibility().counted()).isTrue();
             assertThat(pointsOf(world.ana)).isEqualTo(9);
@@ -198,11 +201,11 @@ class MatchAdministrationTest {
 
     @Test
     void onlyTheAdministratorMayChangeMatches() {
-        assertThatThrownBy(() -> administration.voidMatch(regular, match.id(), "motivo"))
+        assertThatThrownBy(() -> voidMatch(regular, match.id(), "motivo"))
                 .isInstanceOf(ForbiddenException.class);
-        assertThatThrownBy(() -> administration.revertVoid(regular, match.id(), "motivo"))
+        assertThatThrownBy(() -> revertVoid(regular, match.id(), "motivo"))
                 .isInstanceOf(ForbiddenException.class);
-        assertThatThrownBy(() -> administration.correct(regular, correction(match.version(), match.score(),
+        assertThatThrownBy(() -> correct(regular, correction(match.version(), match.score(),
                 match.participants(), null)))
                 .isInstanceOf(ForbiddenException.class);
         assertThat(world.matches.findById(match.id()).orElseThrow()).isEqualTo(match);
@@ -211,8 +214,8 @@ class MatchAdministrationTest {
 
     @Test
     void correctionNotifiesRemovedAndIncludedPlayersAndTheAdministrator() {
-        Player eva = world.players.add("Eva");
-        administration.correct(admin, correction(match.version(), match.score(), List.of(
+        Player eva = world.member("Eva", RankingFixture.NOW);
+        correct(admin, correction(match.version(), match.score(), List.of(
                 Participant.player(Team.A, 1, world.ana.id()), Participant.player(Team.A, 2, world.beto.id()),
                 Participant.player(Team.B, 1, world.caio.id()), Participant.player(Team.B, 2, eva.id())), null));
 
@@ -231,8 +234,8 @@ class MatchAdministrationTest {
         notifications.save("ana-phone", world.ana.id(), DevicePlatform.ANDROID, RankingFixture.NOW);
         notifications.save("admin-phone", adminPlayer.id(), DevicePlatform.IOS, RankingFixture.NOW);
 
-        administration.voidMatch(admin, match.id(), "Partida de treino");
-        administration.revertVoid(admin, match.id(), "Anulada por engano");
+        voidMatch(admin, match.id(), "Partida de treino");
+        revertVoid(admin, match.id(), "Anulada por engano");
 
         List<String> anaBodies = notifications.of(world.ana.id()).stream().map(n -> n.body()).toList();
         assertThat(anaBodies).hasSize(2);
@@ -246,7 +249,7 @@ class MatchAdministrationTest {
 
     @Test
     void unknownMatch() {
-        assertThatThrownBy(() -> administration.voidMatch(admin, UUID.randomUUID(), "motivo"))
+        assertThatThrownBy(() -> voidMatch(admin, UUID.randomUUID(), "motivo"))
                 .isInstanceOf(NotFoundException.class);
     }
 
@@ -255,12 +258,45 @@ class MatchAdministrationTest {
         return new MatchAdministration.Correction(match.id(), version, match.playedAt(), score, participants, reason);
     }
 
+    @Test
+    void systemAdministratorActsInAnyLeagueWithoutBeingAMember() {
+        Player system = world.players.add("Sistema");
+        AuthenticatedUser systemAdmin = new AuthenticatedUser(system.identity(), null, "Sistema", true);
+
+        MatchDetails voided = voidMatch(systemAdmin, match.id(), "Partida de treino").details();
+
+        assertThat(voided.match().voiding().voidedBy()).isEqualTo(system.id());
+        assertThat(notifications.of(system.id())).isEmpty();
+    }
+
+    @Test
+    void matchesOfAnotherLeagueAreNotFound() {
+        assertThatThrownBy(() -> administration.voidMatch(admin, UUID.randomUUID(), match.id(), "motivo"))
+                .hasMessage("LEAGUE_NOT_FOUND");
+    }
+
+    private MatchAdministration.Outcome correct(AuthenticatedUser user, MatchAdministration.Correction correction) {
+        return administration.correct(user, TestLeague.ID, correction);
+    }
+
+    private MatchAdministration.Outcome voidMatch(AuthenticatedUser user, UUID matchId, String reason) {
+        return administration.voidMatch(user, TestLeague.ID, matchId, reason);
+    }
+
+    private MatchAdministration.Outcome revertVoid(AuthenticatedUser user, UUID matchId, String reason) {
+        return administration.revertVoid(user, TestLeague.ID, matchId, reason);
+    }
+
+    private GetSeasonRanking.SeasonRanking seasonRanking(UUID seasonId) {
+        return ranking.bySeasonId(admin, TestLeague.ID, seasonId);
+    }
+
     private int pointsOf(Player player) {
         return entry(player).stats().points();
     }
 
     private RankingEntry entry(Player player) {
-        return ranking.current().orElseThrow().entries().stream()
+        return ranking.current(admin, TestLeague.ID).orElseThrow().entries().stream()
                 .filter(e -> e.playerId().equals(player.id()))
                 .findFirst().orElseThrow();
     }

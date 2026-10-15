@@ -2,6 +2,7 @@ package com.lucchetta.core.usecase.match;
 
 import com.lucchetta.core.domain.match.Match;
 import com.lucchetta.core.domain.match.MatchStatus;
+import com.lucchetta.core.support.TestLeague;
 import com.lucchetta.core.usecase.ranking.RankingFixture;
 import org.junit.jupiter.api.Test;
 
@@ -16,7 +17,8 @@ import static org.assertj.core.api.Assertions.assertThat;
 class SearchMatchesTest {
 
     private final RankingFixture world = new RankingFixture();
-    private final SearchMatches useCase = new SearchMatches(world.matches, world.querySeasons, world.assembler);
+    private final SearchMatches useCase = new SearchMatches(world.access, world.matches, world.querySeasons,
+            world.assembler);
 
     private final Match pastSeason = world.match(LocalDate.of(2026, 9, 6), 6, 0);
     private final Match counted = world.match(LocalDate.of(2026, 10, 4), 6, 4);
@@ -84,7 +86,8 @@ class SearchMatchesTest {
 
     private SearchMatches.Page search(UUID seasonId, UUID playerId, LocalDate from, LocalDate to,
                                       Set<MatchOutcome> outcomes, int page, int size) {
-        return useCase.execute(new SearchMatches.Criteria(seasonId, playerId, from, to, outcomes, page, size));
+        return useCase.execute(RankingFixture.user(world.ana), TestLeague.ID,
+                new SearchMatches.Criteria(seasonId, playerId, from, to, outcomes, page, size));
     }
 
     private static List<UUID> ids(SearchMatches.Page page) {

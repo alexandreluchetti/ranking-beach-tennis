@@ -27,6 +27,8 @@ final class ErrorMessages {
             Map.entry("DUPLICATE_PARTICIPANT", "A mesma pessoa não pode ocupar duas posições na partida."),
             Map.entry("INVALID_GUEST_NAME", "O nome do convidado deve ter no máximo 40 caracteres."),
             Map.entry("UNKNOWN_PLAYER", "Um dos jogadores informados não está cadastrado."),
+            Map.entry("PLAYER_NOT_LEAGUE_MEMBER",
+                    "Um dos jogadores informados não é membro desta liga. Registre-o como convidado."),
             Map.entry("INVALID_MATCH_DATE", "Informe a data e a hora da partida."),
             Map.entry("MATCH_IN_FUTURE", "A data da partida não pode estar no futuro."),
             Map.entry("MATCH_ID_CONFLICT", "Já existe outra partida registrada com este identificador."),

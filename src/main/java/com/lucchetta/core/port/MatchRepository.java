@@ -27,15 +27,16 @@ public interface MatchRepository {
      */
     Match update(Match match);
 
-    /** Valid (not voided) matches played in {@code [from, to)}. */
-    List<Match> findValidPlayedBetween(Instant from, Instant to);
+    /** Valid (not voided) matches of the league played in {@code [from, to)}. */
+    List<Match> findValidPlayedBetween(UUID leagueId, Instant from, Instant to);
 
     /**
      * Matches of any status, most recent first.
      *
+     * @param leagueId only matches of this league, or null for every league
      * @param from     inclusive lower bound, or null
      * @param to       exclusive upper bound, or null
      * @param playerId only matches this registered player took part in, or null
      */
-    List<Match> findPlayed(Instant from, Instant to, UUID playerId);
+    List<Match> findPlayed(UUID leagueId, Instant from, Instant to, UUID playerId);
 }

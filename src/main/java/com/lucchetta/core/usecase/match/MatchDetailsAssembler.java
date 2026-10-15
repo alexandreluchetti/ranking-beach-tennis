@@ -45,12 +45,18 @@ public class MatchDetailsAssembler {
         return assembleAll(List.of(match)).getFirst();
     }
 
-    /** Batch version: one query for seasons and one for player names. Keeps the input order. */
+    /**
+     * Batch version: one query for the seasons of each league involved and one for player names.
+     * Keeps the input order.
+     */
     public List<MatchDetails> assembleAll(List<Match> matches) {
         if (matches.isEmpty()) {
             return List.of();
         }
-        List<Season> seasons = seasonRepository.findAll();
+        Map<UUID, List<Season>> seasons = matches.stream()
+                .map(Match::leagueId)
+                .distinct()
+                .collect(Collectors.toMap(leagueId -> leagueId, seasonRepository::findAll));
         Map<UUID, String> names = playerRepository.findAllByIds(matches.stream()
                         .flatMap(m -> m.participants().stream())
                         .map(Participant::playerId)
@@ -61,8 +67,8 @@ public class MatchDetailsAssembler {
         return matches.stream().map(match -> assemble(match, seasons, names)).toList();
     }
 
-    private MatchDetails assemble(Match match, List<Season> seasons, Map<UUID, String> allNames) {
-        Season season = seasonContaining(seasons, match.playedOn());
+    private MatchDetails assemble(Match match, Map<UUID, List<Season>> seasons, Map<UUID, String> allNames) {
+        Season season = seasonContaining(seasons.get(match.leagueId()), match.playedOn());
         RankingEligibility eligibility = eligibilityPolicy.evaluate(match, season);
 
         Map<Team, Integer> points = new EnumMap<>(Team.class);

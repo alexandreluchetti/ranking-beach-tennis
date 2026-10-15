@@ -1,8 +1,10 @@
 package com.lucchetta.core.usecase.match;
 
+import com.lucchetta.core.domain.AuthenticatedUser;
 import com.lucchetta.core.domain.BusinessCalendar;
 import com.lucchetta.core.domain.Season;
 import com.lucchetta.core.port.MatchRepository;
+import com.lucchetta.core.usecase.league.LeagueAccess;
 import com.lucchetta.core.usecase.season.QuerySeasons;
 
 import java.time.Instant;
@@ -13,7 +15,8 @@ import java.util.Set;
 import java.util.UUID;
 
 /**
- * Match history, most recent first, with combinable filters.
+ * Match history of a league, most recent first, with combinable filters. League members only
+ * (decision D-020).
  */
 public class SearchMatches {
 
@@ -36,21 +39,25 @@ public class SearchMatches {
     public record Page(List<MatchDetails> items, int page, int size, boolean hasNext) {
     }
 
+    private final LeagueAccess leagueAccess;
     private final MatchRepository matchRepository;
     private final QuerySeasons querySeasons;
     private final MatchDetailsAssembler assembler;
 
-    public SearchMatches(MatchRepository matchRepository, QuerySeasons querySeasons, MatchDetailsAssembler assembler) {
+    public SearchMatches(LeagueAccess leagueAccess, MatchRepository matchRepository, QuerySeasons querySeasons,
+                         MatchDetailsAssembler assembler) {
+        this.leagueAccess = leagueAccess;
         this.matchRepository = matchRepository;
         this.querySeasons = querySeasons;
         this.assembler = assembler;
     }
 
-    public Page execute(Criteria criteria) {
+    public Page execute(AuthenticatedUser user, UUID leagueId, Criteria criteria) {
+        leagueAccess.requireMember(user, leagueId);
         LocalDate from = criteria.from();
         LocalDate to = criteria.to();
         if (criteria.seasonId() != null) {
-            Season season = querySeasons.byId(criteria.seasonId()).season();
+            Season season = querySeasons.byId(leagueId, criteria.seasonId()).season();
             from = from == null || from.isBefore(season.startDate()) ? season.startDate() : from;
             to = to == null || to.isAfter(season.endDate()) ? season.endDate() : to;
         }
@@ -61,7 +68,7 @@ public class SearchMatches {
         // Outcome depends on derived eligibility, so it is filtered after assembling. The group's
         // volume (hundreds of matches per year) keeps this cheap.
         List<MatchDetails> filtered = assembler.assembleAll(
-                        matchRepository.findPlayed(startOf(from), endOf(to), criteria.playerId()))
+                        matchRepository.findPlayed(leagueId, startOf(from), endOf(to), criteria.playerId()))
                 .stream()
                 .filter(d -> criteria.outcomes().contains(MatchOutcome.of(d)))
                 .toList();
