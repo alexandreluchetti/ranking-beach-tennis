@@ -41,6 +41,21 @@ final class ErrorMessages {
             Map.entry("REASON_REQUIRED", "Informe a justificativa."),
             Map.entry("REASON_TOO_LONG", "A justificativa deve ter no máximo 500 caracteres."),
             Map.entry("NOTIFICATION_NOT_FOUND", "Notificação não encontrada."),
+            Map.entry("LEAGUE_NOT_FOUND", "Liga não encontrada."),
+            Map.entry("INVALID_LEAGUE_NAME", "O nome da liga deve ter entre 3 e 60 caracteres."),
+            Map.entry("INVALID_LEAGUE_DESCRIPTION", "A descrição da liga deve ter no máximo 500 caracteres."),
+            Map.entry("INVALID_LEAGUE_VISIBILITY", "Informe se a liga é pública ou privada."),
+            Map.entry("INVALID_LEAGUE_ROLE", "Informe o papel do membro: administrador ou membro."),
+            Map.entry("LEAGUE_NAME_TAKEN", "Já existe uma liga com este nome."),
+            Map.entry("LEAGUE_LIMIT_REACHED",
+                    "Você atingiu o limite de 5 ligas criadas. Arquive uma delas para criar outra."),
+            Map.entry("LEAGUE_ARCHIVED", "Esta liga está arquivada e não pode ser alterada."),
+            Map.entry("LEAGUE_NOT_ARCHIVED", "Esta liga não está arquivada."),
+            Map.entry("LEAGUE_MODIFIED", "A liga foi alterada por outra operação. Atualize e tente novamente."),
+            Map.entry("LEAGUE_FULL", "Liga cheia: esta liga atingiu o limite de 50 membros."),
+            Map.entry("LEAGUE_PRIVATE", "Esta liga é privada. Solicite a entrada ou use um convite."),
+            Map.entry("LEAGUE_MEMBER_NOT_FOUND", "Membro não encontrado nesta liga."),
+            Map.entry("LAST_LEAGUE_ADMIN", "A liga precisa ter ao menos um administrador."),
             Map.entry("INVALID_DEVICE", "Dados do dispositivo inválidos."));
 
     private static final String FALLBACK = "Não foi possível concluir a operação.";
