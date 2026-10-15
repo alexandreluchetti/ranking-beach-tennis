@@ -1,9 +1,13 @@
 package com.lucchetta.core.usecase.ranking;
 
+import com.lucchetta.core.domain.AuthenticatedUser;
+import com.lucchetta.core.domain.Player;
 import com.lucchetta.core.domain.match.MatchStatus;
+import com.lucchetta.core.exception.ForbiddenException;
 import com.lucchetta.core.exception.NotFoundException;
 import com.lucchetta.core.stats.PlayerStats;
 import com.lucchetta.core.support.InMemorySeasons;
+import com.lucchetta.core.support.TestLeague;
 import com.lucchetta.core.usecase.season.QuerySeasons;
 import org.junit.jupiter.api.Test;
 
@@ -16,8 +20,9 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 class GetPlayerProfileTest {
 
     private final RankingFixture world = new RankingFixture();
-    private final GetPlayerProfile useCase = new GetPlayerProfile(world.players, world.matches, world.querySeasons,
-            world.assembler);
+    private final GetPlayerProfile useCase = new GetPlayerProfile(world.access, world.players, world.league.leagues,
+            world.matches, world.querySeasons, world.assembler);
+    private final AuthenticatedUser beto = RankingFixture.user(world.beto);
 
     @Test
     void combinesCurrentSeasonCareerAndPastSeasons() {
@@ -28,7 +33,7 @@ class GetPlayerProfileTest {
         world.match(LocalDate.of(2026, 10, 10), 6, 1, MatchStatus.VOIDED,
                 world.match(LocalDate.of(2026, 3, 1), 6, 4).participants()); // voided; the 6-4 is outside seasons
 
-        GetPlayerProfile.PlayerProfile profile = useCase.execute(world.ana.id());
+        GetPlayerProfile.PlayerProfile profile = useCase.execute(beto, TestLeague.ID, world.ana.id());
 
         assertThat(profile.player()).isEqualTo(world.ana);
         assertThat(profile.currentSeason().season().season()).isEqualTo(world.activeSeason);
@@ -49,11 +54,12 @@ class GetPlayerProfileTest {
     @Test
     void noCurrentStandingWithoutActiveSeason() {
         RankingFixture noActive = new RankingFixture();
-        GetPlayerProfile withoutActive = new GetPlayerProfile(noActive.players, noActive.matches,
-                new QuerySeasons(new InMemorySeasons(), RankingFixture.CLOCK),
-                noActive.assembler);
+        GetPlayerProfile withoutActive = new GetPlayerProfile(noActive.access, noActive.players,
+                noActive.league.leagues, noActive.matches,
+                new QuerySeasons(noActive.access, new InMemorySeasons(), RankingFixture.CLOCK), noActive.assembler);
 
-        GetPlayerProfile.PlayerProfile profile = withoutActive.execute(noActive.ana.id());
+        GetPlayerProfile.PlayerProfile profile = withoutActive.execute(RankingFixture.user(noActive.ana),
+                TestLeague.ID, noActive.ana.id());
 
         assertThat(profile.currentSeason()).isNull();
         assertThat(profile.pastSeasons()).isEmpty();
@@ -61,8 +67,26 @@ class GetPlayerProfileTest {
     }
 
     @Test
+    void usersOutsideTheLeagueAreNotFoundAndOutsidersSeeNothing() {
+        Player outsider = world.players.add("Fora");
+
+        assertThatThrownBy(() -> useCase.execute(beto, TestLeague.ID, outsider.id()))
+                .hasMessage("PLAYER_NOT_FOUND");
+        assertThatThrownBy(() -> useCase.execute(RankingFixture.user(outsider), TestLeague.ID, world.ana.id()))
+                .isInstanceOf(ForbiddenException.class);
+    }
+
+    @Test
+    void formerMemberWhoPlayedKeepsTheirProfile() {
+        world.match(LocalDate.of(2026, 10, 4), 6, 4);
+        world.league.leagues.delete(TestLeague.ID, world.dani.id());
+
+        assertThat(useCase.execute(beto, TestLeague.ID, world.dani.id()).career().matchesPlayed()).isEqualTo(1);
+    }
+
+    @Test
     void unknownPlayer() {
-        assertThatThrownBy(() -> useCase.execute(UUID.randomUUID()))
+        assertThatThrownBy(() -> useCase.execute(beto, TestLeague.ID, UUID.randomUUID()))
                 .isInstanceOf(NotFoundException.class)
                 .hasMessage("PLAYER_NOT_FOUND");
     }

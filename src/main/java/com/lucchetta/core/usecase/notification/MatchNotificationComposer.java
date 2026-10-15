@@ -38,12 +38,12 @@ public class MatchNotificationComposer {
         StringBuilder body = new StringBuilder();
         String title = switch (action) {
             case CORRECTED -> {
-                body.append("%s: a partida %s foi corrigida pelo administrador. Mudanças: %s."
+                body.append("%s: a partida %s foi corrigida pela administração da liga. Mudanças: %s."
                         .formatted(day(before), teams(before), String.join("; ", changes(before, after))));
                 yield "Partida corrigida";
             }
             case VOIDED -> {
-                body.append("%s: a partida %s foi anulada pelo administrador e não conta mais no ranking "
+                body.append("%s: a partida %s foi anulada pela administração da liga e não conta mais no ranking "
                         .formatted(day(before), teams(before)))
                         .append("nem nas estatísticas.");
                 yield "Partida anulada";

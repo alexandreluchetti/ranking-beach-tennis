@@ -48,7 +48,8 @@ class RankingApiIT extends IntegrationTest {
         mockMvc.perform(get("/api/seasons/current/ranking").with(userToken()))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.season.id").value(seasonId))
-                .andExpect(jsonPath("$.entries.length()").value(5)) // the admin's profile is listed with zero
+                // the admin and the viewer joined the Arena through the endpoints without a league: listed with zero
+                .andExpect(jsonPath("$.entries.length()").value(6))
                 .andExpect(jsonPath("$.entries[0].displayName").value("Ana"))
                 .andExpect(jsonPath("$.entries[0].position").value(1))
                 .andExpect(jsonPath("$.entries[0].points").value(19))
@@ -106,7 +107,7 @@ class RankingApiIT extends IntegrationTest {
 
         mockMvc.perform(get("/api/players").with(userToken()))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.length()").value(5))
+                .andExpect(jsonPath("$.length()").value(6))
                 .andExpect(jsonPath("$[0].displayName").value("Admin"))
                 .andExpect(jsonPath("$[1].displayName").value("Ana"));
 
@@ -153,7 +154,9 @@ class RankingApiIT extends IntegrationTest {
         return "{\"playerId\": \"" + playerId + "\"}";
     }
 
+    /** Signs in (app before leagues): any endpoint without a league joins the "Beach Tennis Arena". */
     private String playerId(String uid, String name) throws Exception {
+        mockMvc.perform(get("/api/seasons").with(token(uid, name, null))).andExpect(status().isOk());
         return JsonPath.read(mockMvc.perform(get("/api/me").with(token(uid, name, null)))
                 .andReturn().getResponse().getContentAsString(), "$.id");
     }

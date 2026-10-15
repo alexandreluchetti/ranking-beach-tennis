@@ -8,11 +8,13 @@ import java.util.Objects;
 import java.util.UUID;
 
 /**
- * A ranking season. Both dates are inclusive. The status is derived from the dates, so a season
- * closes automatically once its end date has passed (decision D-006).
+ * A ranking season of a league; seasons of one league never overlap (D-008). Both dates are
+ * inclusive. The status is derived from the dates, so a season closes automatically once its end
+ * date has passed (decision D-006).
  */
 public record Season(
         UUID id,
+        UUID leagueId,
         String name,
         LocalDate startDate,
         LocalDate endDate,
@@ -25,6 +27,7 @@ public record Season(
 
     public Season {
         Objects.requireNonNull(id, "id");
+        Objects.requireNonNull(leagueId, "leagueId");
         Objects.requireNonNull(createdBy, "createdBy");
         Objects.requireNonNull(createdAt, "createdAt");
         Objects.requireNonNull(updatedAt, "updatedAt");
@@ -46,7 +49,7 @@ public record Season(
     }
 
     public Season withChanges(String newName, LocalDate newStart, LocalDate newEnd, Instant now) {
-        return new Season(id, newName, newStart, newEnd, createdBy, createdAt, now);
+        return new Season(id, leagueId, newName, newStart, newEnd, createdBy, createdAt, now);
     }
 
     private static String normalizeName(String value) {

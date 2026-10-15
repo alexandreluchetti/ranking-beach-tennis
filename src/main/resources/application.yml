@@ -13,6 +13,9 @@ spring:
       hibernate.jdbc.time_zone: UTC
   flyway:
     enabled: true
+    placeholders:
+      # V6 makes the system administrator the administrator of the migrated league.
+      admin_auth_subject: ${app.security.admin-subject}
 
 app:
   security:

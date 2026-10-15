@@ -1,9 +1,10 @@
 package com.lucchetta.core.usecase.notification;
 
+import com.lucchetta.core.domain.league.LeagueMember;
 import com.lucchetta.core.domain.match.MatchAuditEntry;
 import com.lucchetta.core.domain.notification.Notification;
 import com.lucchetta.core.domain.notification.NotificationType;
-import com.lucchetta.core.port.AdministratorDirectory;
+import com.lucchetta.core.port.LeagueMemberRepository;
 import com.lucchetta.core.port.NotificationRepository;
 import com.lucchetta.core.usecase.match.MatchDetails;
 
@@ -16,22 +17,23 @@ import java.util.UUID;
 
 /**
  * Creates the in-app notifications of match events. Recipients: the registered participants
- * (before and after a correction, D-015) and the administrator. Guests are never notified.
+ * (before and after a correction, D-015) and the administrators of the match's league (D-021).
+ * Guests are never notified.
  * Each event has a stable key, so retries, resends and repeated syncs never notify twice.
  */
 public class MatchNotifier {
 
     private final NotificationRepository notificationRepository;
-    private final AdministratorDirectory administratorDirectory;
+    private final LeagueMemberRepository memberRepository;
     private final MatchNotificationComposer composer;
     private final Clock clock;
 
     public MatchNotifier(NotificationRepository notificationRepository,
-                         AdministratorDirectory administratorDirectory,
+                         LeagueMemberRepository memberRepository,
                          MatchNotificationComposer composer,
                          Clock clock) {
         this.notificationRepository = notificationRepository;
-        this.administratorDirectory = administratorDirectory;
+        this.memberRepository = memberRepository;
         this.composer = composer;
         this.clock = clock;
     }
@@ -44,7 +46,7 @@ public class MatchNotifier {
         return notificationRepository.insertNew(recipients(details, details).stream()
                 .map(recipient -> {
                     MatchNotificationComposer.Message message = composer.registered(details, recipient);
-                    return notification(recipient, NotificationType.MATCH_REGISTERED, matchId, message, now, eventKey);
+                    return notification(recipient, NotificationType.MATCH_REGISTERED, details, message, now, eventKey);
                 })
                 .toList());
     }
@@ -61,7 +63,7 @@ public class MatchNotifier {
         };
         Instant now = clock.instant();
         return notificationRepository.insertNew(recipients(before, after).stream()
-                .map(recipient -> notification(recipient, type, matchId,
+                .map(recipient -> notification(recipient, type, after,
                         composer.changed(action, before, after, reason, recipient), now, eventKey))
                 .toList());
     }
@@ -69,13 +71,16 @@ public class MatchNotifier {
     private Set<UUID> recipients(MatchDetails before, MatchDetails after) {
         Set<UUID> recipients = new LinkedHashSet<>(before.match().playerIds());
         recipients.addAll(after.match().playerIds());
-        administratorDirectory.administratorPlayerId().ifPresent(recipients::add);
+        memberRepository.findByLeague(after.match().leagueId()).stream()
+                .filter(LeagueMember::admin)
+                .map(LeagueMember::playerId)
+                .forEach(recipients::add);
         return recipients;
     }
 
-    private static Notification notification(UUID recipient, NotificationType type, UUID matchId,
+    private static Notification notification(UUID recipient, NotificationType type, MatchDetails details,
                                              MatchNotificationComposer.Message message, Instant now, String eventKey) {
-        return new Notification(UUID.randomUUID(), recipient, type, matchId, message.title(), message.body(), now,
-                null, eventKey + ":" + recipient);
+        return new Notification(UUID.randomUUID(), recipient, type, details.match().id(), message.title(),
+                message.body(), now, null, eventKey + ":" + recipient, details.match().leagueId(), null, null);
     }
 }

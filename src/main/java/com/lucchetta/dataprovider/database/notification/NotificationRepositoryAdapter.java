@@ -29,8 +29,10 @@ public class NotificationRepositoryAdapter implements NotificationRepository {
         List<Notification> inserted = new ArrayList<>();
         for (Notification n : notifications) {
             int rows = jdbcClient.sql("""
-                            insert into notification (id, recipient_id, type, match_id, title, body, created_at, dedup_key)
-                            values (:id, :recipientId, :type, :matchId, :title, :body, :createdAt, :dedupKey)
+                            insert into notification (id, recipient_id, type, match_id, title, body, created_at,
+                                                      dedup_key, league_id, join_request_id, invitation_id)
+                            values (:id, :recipientId, :type, :matchId, :title, :body, :createdAt, :dedupKey,
+                                    :leagueId, :joinRequestId, :invitationId)
                             on conflict (dedup_key) do nothing
                             """)
                     .param("id", n.id())
@@ -41,6 +43,9 @@ public class NotificationRepositoryAdapter implements NotificationRepository {
                     .param("body", n.body())
                     .param("createdAt", utc(n.createdAt()))
                     .param("dedupKey", n.dedupKey())
+                    .param("leagueId", n.leagueId())
+                    .param("joinRequestId", n.joinRequestId())
+                    .param("invitationId", n.invitationId())
                     .update();
             if (rows == 1) {
                 inserted.add(n);
@@ -53,7 +58,8 @@ public class NotificationRepositoryAdapter implements NotificationRepository {
     @Transactional(readOnly = true)
     public List<Notification> findByRecipient(UUID recipientId, int offset, int limit) {
         return jdbcClient.sql("""
-                        select id, recipient_id, type, match_id, title, body, created_at, read_at, dedup_key
+                        select id, recipient_id, type, match_id, title, body, created_at, read_at, dedup_key,
+                               league_id, join_request_id, invitation_id
                         from notification where recipient_id = :recipientId
                         order by created_at desc, id
                         offset :offset limit :limit
@@ -72,7 +78,10 @@ public class NotificationRepositoryAdapter implements NotificationRepository {
                             rs.getString("body"),
                             rs.getObject("created_at", OffsetDateTime.class).toInstant(),
                             readAt == null ? null : readAt.toInstant(),
-                            rs.getString("dedup_key"));
+                            rs.getString("dedup_key"),
+                            rs.getObject("league_id", UUID.class),
+                            rs.getObject("join_request_id", UUID.class),
+                            rs.getObject("invitation_id", UUID.class));
                 })
                 .list();
     }

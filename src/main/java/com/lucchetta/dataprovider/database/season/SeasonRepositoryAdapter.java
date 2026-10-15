@@ -25,8 +25,8 @@ public class SeasonRepositoryAdapter implements SeasonRepository {
 
     @Override
     @Transactional(readOnly = true)
-    public List<Season> findAll() {
-        return jpaRepository.findAllByOrderByStartDateDesc().stream()
+    public List<Season> findAll(UUID leagueId) {
+        return jpaRepository.findAllByLeagueIdOrderByStartDateDesc(leagueId).stream()
                 .map(SeasonRepositoryAdapter::toDomain)
                 .toList();
     }
@@ -39,23 +39,23 @@ public class SeasonRepositoryAdapter implements SeasonRepository {
 
     @Override
     @Transactional(readOnly = true)
-    public Optional<Season> findContaining(LocalDate date) {
-        return jpaRepository.findContaining(date).map(SeasonRepositoryAdapter::toDomain);
+    public Optional<Season> findContaining(UUID leagueId, LocalDate date) {
+        return jpaRepository.findContaining(leagueId, date).map(SeasonRepositoryAdapter::toDomain);
     }
 
     @Override
     @Transactional(readOnly = true)
-    public boolean existsOverlapping(LocalDate startDate, LocalDate endDate, UUID excludedId) {
+    public boolean existsOverlapping(UUID leagueId, LocalDate startDate, LocalDate endDate, UUID excludedId) {
         return excludedId == null
-                ? jpaRepository.existsOverlapping(startDate, endDate)
-                : jpaRepository.existsOverlappingExcluding(startDate, endDate, excludedId);
+                ? jpaRepository.existsOverlapping(leagueId, startDate, endDate)
+                : jpaRepository.existsOverlappingExcluding(leagueId, startDate, endDate, excludedId);
     }
 
     @Override
     @Transactional
     public Season insert(Season season) {
-        SeasonEntity entity = new SeasonEntity(season.id(), season.name(), season.startDate(), season.endDate(),
-                season.createdBy(), season.createdAt(), season.updatedAt());
+        SeasonEntity entity = new SeasonEntity(season.id(), season.leagueId(), season.name(), season.startDate(),
+                season.endDate(), season.createdBy(), season.createdAt(), season.updatedAt());
         return toDomain(saveTranslatingOverlap(entity));
     }
 
@@ -81,7 +81,7 @@ public class SeasonRepositoryAdapter implements SeasonRepository {
     }
 
     private static Season toDomain(SeasonEntity entity) {
-        return new Season(entity.getId(), entity.getName(), entity.getStartDate(), entity.getEndDate(),
-                entity.getCreatedBy(), entity.getCreatedAt(), entity.getUpdatedAt());
+        return new Season(entity.getId(), entity.getLeagueId(), entity.getName(), entity.getStartDate(),
+                entity.getEndDate(), entity.getCreatedBy(), entity.getCreatedAt(), entity.getUpdatedAt());
     }
 }

@@ -1,6 +1,7 @@
 package com.lucchetta.core.domain;
 
 import com.lucchetta.core.exception.RuleViolationException;
+import com.lucchetta.core.support.TestLeague;
 import org.junit.jupiter.api.Test;
 
 import java.time.Clock;
@@ -73,6 +74,6 @@ class SeasonTest {
 
     private static Season season(String name, LocalDate start, LocalDate end) {
         Instant now = Instant.parse("2026-09-01T12:00:00Z");
-        return new Season(UUID.randomUUID(), name, start, end, UUID.randomUUID(), now, now);
+        return new Season(UUID.randomUUID(), TestLeague.ID, name, start, end, UUID.randomUUID(), now, now);
     }
 }

@@ -153,7 +153,9 @@ class AdminMatchApiIT extends IntegrationTest {
                 reason == null ? "null" : "\"" + reason + "\"");
     }
 
+    /** Signs in (app before leagues): any endpoint without a league joins the "Beach Tennis Arena". */
     private String playerId(String uid, String name) throws Exception {
+        mockMvc.perform(get("/api/seasons").with(token(uid, name, null))).andExpect(status().isOk());
         return JsonPath.read(mockMvc.perform(get("/api/me").with(token(uid, name, null)))
                 .andReturn().getResponse().getContentAsString(), "$.id");
     }

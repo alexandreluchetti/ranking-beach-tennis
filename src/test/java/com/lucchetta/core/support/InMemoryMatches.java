@@ -43,8 +43,9 @@ public class InMemoryMatches implements MatchRepository {
         if (stored == null || stored.version() != match.version()) {
             throw new ConflictException("MATCH_MODIFIED");
         }
-        Match saved = new Match(match.id(), match.playedAt(), match.score(), match.participants(), match.status(),
-                match.registeredBy(), match.registeredAt(), match.updatedAt(), match.voiding(), match.version() + 1);
+        Match saved = new Match(match.id(), match.leagueId(), match.playedAt(), match.score(), match.participants(),
+                match.status(), match.registeredBy(), match.registeredAt(), match.updatedAt(), match.voiding(),
+                match.version() + 1);
         matches.put(saved.id(), saved);
         return saved;
     }
@@ -56,8 +57,9 @@ public class InMemoryMatches implements MatchRepository {
     }
 
     @Override
-    public List<Match> findPlayed(Instant from, Instant to, UUID playerId) {
+    public List<Match> findPlayed(UUID leagueId, Instant from, Instant to, UUID playerId) {
         return matches.values().stream()
+                .filter(m -> leagueId == null || m.leagueId().equals(leagueId))
                 .filter(m -> from == null || !m.playedAt().isBefore(from))
                 .filter(m -> to == null || m.playedAt().isBefore(to))
                 .filter(m -> playerId == null || m.participants().stream().anyMatch(p -> playerId.equals(p.playerId())))
@@ -66,8 +68,9 @@ public class InMemoryMatches implements MatchRepository {
     }
 
     @Override
-    public List<Match> findValidPlayedBetween(Instant from, Instant to) {
+    public List<Match> findValidPlayedBetween(UUID leagueId, Instant from, Instant to) {
         return matches.values().stream()
+                .filter(m -> m.leagueId().equals(leagueId))
                 .filter(m -> m.status() == MatchStatus.VALID)
                 .filter(m -> !m.playedAt().isBefore(from) && m.playedAt().isBefore(to))
                 .toList();

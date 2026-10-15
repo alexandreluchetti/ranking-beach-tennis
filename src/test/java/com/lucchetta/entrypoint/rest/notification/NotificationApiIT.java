@@ -31,6 +31,10 @@ class NotificationApiIT extends IntegrationTest {
     @BeforeEach
     void registerPlayersAndAdmin() throws Exception {
         playerId(ADMIN_UID, "Admin");
+        // As migration V6 does in production: the system administrator administers the Arena league,
+        // so match notifications reach them (decision D-021).
+        jdbcTemplate.update("update league_member set role = 'ADMIN' where player_id = "
+                + "(select id from app_user where auth_subject = ?)", ADMIN_UID);
         ana = playerId("uid-ana", "Ana");
         beto = playerId("uid-beto", "Beto");
         caio = playerId("uid-caio", "Caio");
@@ -136,7 +140,9 @@ class NotificationApiIT extends IntegrationTest {
                 .andReturn().getResponse().getContentAsString(), "$.id");
     }
 
+    /** Signs in (app before leagues): any endpoint without a league joins the "Beach Tennis Arena". */
     private String playerId(String uid, String name) throws Exception {
+        mockMvc.perform(get("/api/seasons").with(token(uid, name, null))).andExpect(status().isOk());
         return JsonPath.read(mockMvc.perform(get("/api/me").with(token(uid, name, null)))
                 .andReturn().getResponse().getContentAsString(), "$.id");
     }

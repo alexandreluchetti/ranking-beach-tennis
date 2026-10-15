@@ -7,13 +7,11 @@ import com.lucchetta.core.domain.Season;
 import com.lucchetta.core.domain.SeasonAuditEntry;
 import com.lucchetta.core.domain.SeasonStatus;
 import com.lucchetta.core.exception.ConflictException;
-import com.lucchetta.core.exception.ForbiddenException;
-import com.lucchetta.core.exception.NotFoundException;
 import com.lucchetta.core.exception.RuleViolationException;
 import com.lucchetta.core.port.SeasonAuditLog;
 import com.lucchetta.core.port.SeasonRepository;
 import com.lucchetta.core.port.TransactionRunner;
-import com.lucchetta.core.usecase.player.GetOrCreateCurrentPlayer;
+import com.lucchetta.core.usecase.league.LeagueAccess;
 
 import java.time.Clock;
 import java.time.Instant;
@@ -22,7 +20,7 @@ import java.util.Objects;
 import java.util.UUID;
 
 /**
- * Changes a season. Administrator only.
+ * Changes a season of a league. League administrators (or the system administrator) only.
  * <ul>
  *     <li>Closed seasons cannot be changed or reopened (D-006).</li>
  *     <li>Active seasons keep their start date; the end date may be extended or brought forward,
@@ -36,35 +34,34 @@ public class UpdateSeason {
     public record Command(String name, LocalDate startDate, LocalDate endDate) {
     }
 
-    private final GetOrCreateCurrentPlayer getOrCreateCurrentPlayer;
+    private final LeagueAccess leagueAccess;
     private final SeasonRepository seasonRepository;
     private final SeasonAuditLog auditLog;
     private final TransactionRunner transactionRunner;
     private final Clock clock;
 
-    public UpdateSeason(GetOrCreateCurrentPlayer getOrCreateCurrentPlayer,
+    public UpdateSeason(LeagueAccess leagueAccess,
                         SeasonRepository seasonRepository,
                         SeasonAuditLog auditLog,
                         TransactionRunner transactionRunner,
                         Clock clock) {
-        this.getOrCreateCurrentPlayer = getOrCreateCurrentPlayer;
+        this.leagueAccess = leagueAccess;
         this.seasonRepository = seasonRepository;
         this.auditLog = auditLog;
         this.transactionRunner = transactionRunner;
         this.clock = clock;
     }
 
-    public SeasonView execute(AuthenticatedUser user, UUID seasonId, Command command) {
-        if (!user.admin()) {
-            throw new ForbiddenException();
-        }
-        Player admin = getOrCreateCurrentPlayer.execute(user);
+    public SeasonView execute(AuthenticatedUser user, UUID leagueId, UUID seasonId, Command command) {
+        LeagueAccess.Context context = leagueAccess.context(user, leagueId);
+        LeagueAccess.requireAdministrator(context);
+        LeagueAccess.requireNotArchived(context.league());
+        Player admin = context.player();
         LocalDate today = BusinessCalendar.today(clock);
         Instant now = clock.instant();
 
         Season result = transactionRunner.inTransaction(() -> {
-            Season current = seasonRepository.findById(seasonId)
-                    .orElseThrow(() -> new NotFoundException("SEASON_NOT_FOUND"));
+            Season current = QuerySeasons.requireInLeague(seasonRepository, leagueId, seasonId);
             SeasonStatus status = current.statusOn(today);
             if (status == SeasonStatus.CLOSED) {
                 throw new RuleViolationException("SEASON_CLOSED");
@@ -84,7 +81,7 @@ public class UpdateSeason {
             if (sameContent(current, updated)) {
                 return current;
             }
-            if (seasonRepository.existsOverlapping(updated.startDate(), updated.endDate(), updated.id())) {
+            if (seasonRepository.existsOverlapping(leagueId, updated.startDate(), updated.endDate(), updated.id())) {
                 throw new ConflictException("SEASON_OVERLAP");
             }
             Season saved = seasonRepository.update(updated);
