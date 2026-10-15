@@ -18,8 +18,9 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 /**
- * Migration V6 moves the existing group into the "Beach Tennis Arena" league (decision D-023).
- * Each scenario runs V1-V5 in a fresh database, adds data, then applies V6.
+ * Migration V6 moves the existing group into the "Beach Tennis Arena" league (decision D-023);
+ * V8 gives the older match notifications their league. Each scenario migrates a fresh database
+ * up to the version before, adds data, then applies the rest.
  */
 class LeagueMigrationIT extends IntegrationTest {
 
@@ -74,6 +75,21 @@ class LeagueMigrationIT extends IntegrationTest {
         assertThat(db.queryForObject("select created_by from league where id = ?", UUID.class, DefaultLeague.ID))
                 .isNull();
         assertThat(db.queryForObject("select count(*) from league_member", Integer.class)).isZero();
+    }
+
+    @Test
+    void olderMatchNotificationsGetTheLeagueOfTheirMatch() {
+        JdbcTemplate db = databaseAtV5("v8_notifications");
+        UUID player = insertUser(db, "player-uid", T0);
+        UUID match = insertMatch(db, player);
+        db.update("""
+                insert into notification (id, recipient_id, type, match_id, title, body, created_at, dedup_key)
+                values (?, ?, 'MATCH_REGISTERED', ?, 'Partida registrada', 'corpo', now(), 'REGISTERED:x')
+                """, UUID.randomUUID(), player, match);
+
+        migrateToLatest(db, "player-uid");
+
+        assertThat(db.queryForObject("select league_id from notification", UUID.class)).isEqualTo(DefaultLeague.ID);
     }
 
     @Test
