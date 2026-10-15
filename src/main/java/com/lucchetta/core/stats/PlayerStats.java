@@ -14,6 +14,15 @@ public record PlayerStats(int matchesPlayed, int wins, int losses, int gamesWon,
         return gamesWon - gamesLost;
     }
 
+    /**
+     * Win rate (`Aproveitamento`): wins ÷ matches played × 100, rounded to an integer.
+     *
+     * @return null when there are no matches (not 0%)
+     */
+    public Integer winRate() {
+        return matchesPlayed == 0 ? null : (int) Math.round(wins * 100.0 / matchesPlayed);
+    }
+
     PlayerStats plus(boolean won, int ownGames, int opponentGames, int matchPoints) {
         return new PlayerStats(matchesPlayed + 1, wins + (won ? 1 : 0), losses + (won ? 0 : 1),
                 gamesWon + ownGames, gamesLost + opponentGames, points + matchPoints);

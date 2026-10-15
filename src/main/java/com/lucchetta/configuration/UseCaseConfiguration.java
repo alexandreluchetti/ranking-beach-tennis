@@ -24,6 +24,7 @@ import com.lucchetta.core.usecase.notification.MatchNotificationComposer;
 import com.lucchetta.core.usecase.notification.MatchNotifier;
 import com.lucchetta.core.usecase.notification.NotificationInbox;
 import com.lucchetta.core.usecase.notification.PushDispatcher;
+import com.lucchetta.core.usecase.player.GetMyStatistics;
 import com.lucchetta.core.usecase.player.GetOrCreateCurrentPlayer;
 import com.lucchetta.core.usecase.player.QueryPlayers;
 import com.lucchetta.core.usecase.player.UpdateDisplayName;
@@ -52,6 +53,12 @@ public class UseCaseConfiguration {
     @Bean
     GetOrCreateCurrentPlayer getOrCreateCurrentPlayer(PlayerRepository playerRepository, Clock clock) {
         return new GetOrCreateCurrentPlayer(playerRepository, clock);
+    }
+
+    @Bean
+    GetMyStatistics getMyStatistics(GetOrCreateCurrentPlayer getOrCreateCurrentPlayer, MatchRepository matchRepository,
+                                    MatchDetailsAssembler matchDetailsAssembler) {
+        return new GetMyStatistics(getOrCreateCurrentPlayer, matchRepository, matchDetailsAssembler);
     }
 
     @Bean
