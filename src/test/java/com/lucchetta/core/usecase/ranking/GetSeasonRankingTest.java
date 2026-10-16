@@ -35,9 +35,30 @@ class GetSeasonRankingTest {
         List<RankingEntry> ranking = useCase.current(caller, TestLeague.ID).orElseThrow().entries();
 
         assertThat(ranking).extracting(RankingEntry::position, RankingEntry::displayName, e -> e.stats().points())
-                .containsExactly(tuple(1, "Ana", 15), tuple(1, "Beto", 15), tuple(3, "Caio", 14), tuple(3, "Dani", 14));
+                // Partners tie on everything up to joining the league: the name decides (D-013, criterion 7).
+                .containsExactly(tuple(1, "Ana", 15), tuple(2, "Beto", 15), tuple(3, "Caio", 14), tuple(4, "Dani", 14));
         assertThat(entry(ranking, world.ana.id()).stats()).isEqualTo(new PlayerStats(2, 1, 1, 12, 11, 15));
         assertThat(entry(ranking, world.caio.id()).stats()).isEqualTo(new PlayerStats(2, 1, 1, 11, 12, 14));
+    }
+
+    @Test
+    void equalResultsAreDecidedByWhoReachedThePointsFirst() {
+        world.match(LocalDate.of(2026, 10, 4), 6, 0);   // Ana and Beto reach 9 points
+        world.match(LocalDate.of(2026, 10, 11), 0, 6);  // Caio and Dani reach 9 points a week later
+
+        assertThat(useCase.current(caller, TestLeague.ID).orElseThrow().entries())
+                .extracting(RankingEntry::position, RankingEntry::displayName, e -> e.stats().points())
+                .containsExactly(tuple(1, "Ana", 9), tuple(2, "Beto", 9), tuple(3, "Caio", 9), tuple(4, "Dani", 9));
+    }
+
+    @Test
+    void playersWithoutPointsFollowTheirLeagueEntryBeforeTheirName() {
+        world.member("Abel", Instant.parse("2026-10-05T12:00:00Z"));
+
+        assertThat(useCase.current(caller, TestLeague.ID).orElseThrow().entries())
+                .extracting(RankingEntry::position, RankingEntry::displayName)
+                .containsExactly(tuple(1, "Ana"), tuple(2, "Beto"), tuple(3, "Caio"), tuple(4, "Dani"),
+                        tuple(5, "Abel"));
     }
 
     @Test

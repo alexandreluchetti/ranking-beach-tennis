@@ -7,7 +7,7 @@ import java.util.List;
 import java.util.UUID;
 
 /**
- * @param entries ordered by D-013; tied players share {@code position}
+ * @param entries ordered by D-013; every {@code position} is distinct (1, 2, 3, ...)
  */
 public record RankingResponse(SeasonResponse season, List<Entry> entries) {
 
