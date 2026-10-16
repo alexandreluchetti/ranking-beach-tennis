@@ -6,15 +6,20 @@ import com.lucchetta.core.domain.Season;
 import com.lucchetta.core.domain.league.LeagueMember;
 import com.lucchetta.core.domain.match.Participant;
 import com.lucchetta.core.port.PlayerRepository;
+import com.lucchetta.core.stats.PlayerStats;
 import com.lucchetta.core.stats.RankingCalculator;
 import com.lucchetta.core.stats.RankingEntry;
 import com.lucchetta.core.stats.StatisticsCalculator;
 import com.lucchetta.core.usecase.match.MatchDetails;
 
+import java.time.Instant;
 import java.time.LocalDate;
 import java.util.Collection;
+import java.util.Comparator;
+import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
 import java.util.UUID;
@@ -55,8 +60,31 @@ public final class SeasonRankingBuilder {
                         .isAfter(season.endDate()))
                 .map(LeagueMember::playerId)
                 .forEach(ranked::add);
-        List<Player> rankedPlayers = players.stream().filter(p -> ranked.contains(p.id())).toList();
-        return RankingCalculator.rank(rankedPlayers, StatisticsCalculator.byPlayer(seasonMatches));
+        Map<UUID, PlayerStats> stats = StatisticsCalculator.byPlayer(seasonMatches);
+        Map<UUID, Instant> reachedAt = pointsReachedAt(seasonMatches);
+        Map<UUID, Instant> joinedAt = members.stream()
+                .collect(Collectors.toMap(LeagueMember::playerId, LeagueMember::joinedAt));
+        return RankingCalculator.rank(players.stream()
+                .filter(p -> ranked.contains(p.id()))
+                .map(p -> new RankingCalculator.Candidate(p, stats.getOrDefault(p.id(), PlayerStats.EMPTY),
+                        reachedAt.get(p.id()), joinedAt.get(p.id())))
+                .toList());
+    }
+
+    /**
+     * When each player reached their current points: the time of the last match, in playing order,
+     * that gave them points (decision D-013, criterion 6). Players without points are absent.
+     */
+    private static Map<UUID, Instant> pointsReachedAt(List<MatchDetails> seasonMatches) {
+        Map<UUID, Instant> reachedAt = new HashMap<>();
+        seasonMatches.stream()
+                .filter(d -> StatisticsCalculator.includedInStatistics(d.match()))
+                .sorted(Comparator.comparing((MatchDetails d) -> d.match().playedAt())
+                        .thenComparing(d -> d.match().registeredAt()))
+                .forEach(d -> d.match().participants().stream()
+                        .filter(p -> !p.isGuest() && d.pointsFor(p.team()) > 0)
+                        .forEach(p -> reachedAt.put(p.playerId(), d.match().playedAt())));
+        return reachedAt;
     }
 
     /** Every member and every registered participant of the matches: the players a ranking may list. */
