@@ -42,9 +42,10 @@ points = games won by the player's team + (3 if the team won the match, otherwis
 
 ### D-004 — Guests
 If at least one of the four participants is a guest, the match is saved (after a warning) but
-**no participant receives any points** (neither games nor bonus). The match still counts for
-statistics (matches played, wins, losses, game difference). Guest status is never changed
-retroactively.
+**no participant receives any points** (neither games nor bonus) and it does **not** count for the
+season's statistics or ranking (matches played, wins, losses, game difference): a season counts
+only its counted matches. It still counts for career statistics (league profile and global
+statistics), like matches outside any season. Guest status is never changed retroactively.
 
 ### D-005 — Game difference
 Computed from the recorded final score, tie-break counted as one game (7–6 → +1 / −1).
@@ -86,11 +87,18 @@ same two teams, the server answers "possible duplicate" and the user must explic
 that it is a different match. Resending the same match id is idempotent and is not a duplicate.
 
 ### D-013 — Ranking order and tie-breaks
+Positions are never shared: every player has a distinct position (1, 2, 3, ...).
+
 1. More points.
 2. More wins.
 3. Better game difference.
 4. **Fewer** matches played (same result with fewer matches ranks higher).
-5. Still tied: shared position.
+5. More games won.
+6. Reached the current points first: earlier date and time of the match that brought the player
+   to their current total (players with no points are tied here).
+7. Joined the league first; then display name in alphabetical order; then the earliest
+   registration in the app (partners who always play together and players with no points
+   are resolved here).
 
 ### D-014 — Late registrations into closed seasons
 A match dated inside a closed season still counts for that season, even if registered or
@@ -161,8 +169,8 @@ the user who registered it. Once the server has it, only the administrator can c
 - A match is registered inside the league the user is in, and belongs to it. The registering
   user must be a member of that league.
 - Every registered player in a match must be a member of the league. Guest positions (a typed
-  name, D-004) are still allowed; a match with a guest gives no points to anyone but counts for
-  statistics.
+  name, D-004) are still allowed; a match with a guest gives no points to anyone and counts
+  only for career statistics (D-004).
 - Season ranking members: the league's members up to the season's end date, plus anyone who
   played in it. A member who leaves no longer appears in later seasons but stays in the
   seasons they played.
@@ -194,8 +202,6 @@ published; then they are removed.
   tie-break winner must be the match winner. No other limit (e.g. "first to 7") is enforced.
 - The user registering a match does not need to be one of its participants.
 - Match time is kept with whole-second precision.
-- Shared positions skip the following ones (1, 1, 3). Inside a shared position, players are
-  listed alphabetically (display only, not a tie-break).
 - Ranking members of a season: every player registered up to the season's end date, plus anyone
   who played in it. The active season therefore lists everyone; a past season does not list
   people who joined after it ended. The administrator is a player like any other.

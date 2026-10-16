@@ -29,7 +29,8 @@ class GetPlayerProfileTest {
         world.match(LocalDate.of(2026, 9, 6), 6, 0);    // past season: Ana +9
         world.match(LocalDate.of(2026, 10, 4), 4, 6);   // active season: Ana +4 (loss)
         world.match(LocalDate.of(2026, 5, 10), 6, 3);   // outside any season: stats only
-        world.match(LocalDate.of(2026, 10, 11), 6, 2, MatchStatus.VALID, world.anaAndGuestVsCaioAndDani()); // guest
+        world.match(LocalDate.of(2026, 10, 11), 6, 2, MatchStatus.VALID, world.anaAndGuestVsCaioAndDani()); // guest:
+        // inside the active season, but counts only for the career
         world.match(LocalDate.of(2026, 10, 10), 6, 1, MatchStatus.VOIDED,
                 world.match(LocalDate.of(2026, 3, 1), 6, 4).participants()); // voided; the 6-4 is outside seasons
 
@@ -37,7 +38,7 @@ class GetPlayerProfileTest {
 
         assertThat(profile.player()).isEqualTo(world.ana);
         assertThat(profile.currentSeason().season().season()).isEqualTo(world.activeSeason);
-        assertThat(profile.currentSeason().stats()).isEqualTo(new PlayerStats(2, 1, 1, 10, 8, 4));
+        assertThat(profile.currentSeason().stats()).isEqualTo(new PlayerStats(1, 0, 1, 4, 6, 4));
         assertThat(profile.currentSeason().position()).isEqualTo(3);
         assertThat(profile.currentSeason().rankedPlayers()).isEqualTo(4);
 
