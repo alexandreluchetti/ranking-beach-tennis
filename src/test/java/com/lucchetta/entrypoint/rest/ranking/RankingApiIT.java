@@ -116,8 +116,10 @@ class RankingApiIT extends IntegrationTest {
                 .andExpect(jsonPath("$.displayName").value("Ana"))
                 .andExpect(jsonPath("$.currentSeason.position").value(1))
                 .andExpect(jsonPath("$.currentSeason.stats.points").value(9))
-                .andExpect(jsonPath("$.currentSeason.stats.matchesPlayed").value(2))
-                .andExpect(jsonPath("$.currentSeason.stats.wins").value(2))
+                // The guest match counts only for the career (D-004).
+                .andExpect(jsonPath("$.currentSeason.stats.matchesPlayed").value(1))
+                .andExpect(jsonPath("$.currentSeason.stats.wins").value(1))
+                .andExpect(jsonPath("$.currentSeason.stats.gameDifference").value(2))
                 .andExpect(jsonPath("$.career.matchesPlayed").value(2))
                 .andExpect(jsonPath("$.career.gameDifference").value(7))
                 .andExpect(jsonPath("$.pastSeasons.length()").value(0));
