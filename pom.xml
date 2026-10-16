@@ -13,7 +13,7 @@
 
     <groupId>com.lucchetta</groupId>
     <artifactId>ranking-beach-tennis</artifactId>
-    <version>1.1.0</version>
+    <version>1.1.1</version>
     <name>ranking-beach-tennis</name>
     <description>Beach tennis individual ranking API</description>
 
