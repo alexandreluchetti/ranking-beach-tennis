@@ -201,6 +201,10 @@ published; then they are removed.
 - Tie-break points: optional even for 7–6 / 5–4; when given, both values are required and the
   tie-break winner must be the match winner. No other limit (e.g. "first to 7") is enforced.
 - The user registering a match does not need to be one of its participants.
+- Registering a match: the user picks only the date (today or a past day); the app sends that date
+  with the time of registering on the phone, so a match saved offline keeps its day. Without a
+  time, the backend uses the moment it receives the match (and a resend without time is still
+  idempotent). League administrators may still change date and time in a correction.
 - Match time is kept with whole-second precision.
 - Ranking members of a season: every player registered up to the season's end date, plus anyone
   who played in it. The active season therefore lists everyone; a past season does not list

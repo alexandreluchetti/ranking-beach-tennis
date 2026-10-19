@@ -180,6 +180,24 @@ class MatchApiIT extends IntegrationTest {
                 .content(body));
     }
 
+    @Test
+    void withoutPlayedAtTheMatchTakesTheMomentItIsReceived() throws Exception {
+        createActiveSeason();
+        String id = UUID.randomUUID().toString();
+        String withoutTime = body(id, 6, 4, player(ana), player(beto), player(caio), player(dani), false)
+                .replaceFirst("\"playedAt\": \"[^\"]+\", ", "");
+        OffsetDateTime before = OffsetDateTime.now().minusSeconds(1);
+
+        String created = register(withoutTime)
+                .andExpect(status().isCreated())
+                .andExpect(jsonPath("$.counted").value(true))
+                .andReturn().getResponse().getContentAsString();
+        register(withoutTime).andExpect(status().isOk()); // idempotent resend, no time to compare
+
+        OffsetDateTime stored = OffsetDateTime.parse(JsonPath.read(created, "$.playedAt"));
+        assertThat(stored).isBetween(before, OffsetDateTime.now().plusSeconds(1));
+    }
+
     private String body(String id, int teamAGames, int teamBGames, String a1, String a2, String b1, String b2,
                         boolean confirm) {
         return body(id, teamAGames, teamBGames, "null", "null", a1, a2, b1, b2, confirm);

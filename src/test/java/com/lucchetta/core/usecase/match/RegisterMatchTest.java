@@ -232,6 +232,31 @@ class RegisterMatchTest {
     }
 
     @Test
+    void withoutATimeTheMatchIsPlayedWhenTheServerReceivesIt() {
+        UUID id = UUID.randomUUID();
+
+        RegisterMatch.Result first = register(caller, new RegisterMatch.Command(id, null, sixFour(), regularTeams(),
+                false));
+        RegisterMatch.Result resend = register(caller, new RegisterMatch.Command(id, null, sixFour(), regularTeams(),
+                false));
+
+        assertThat(first.details().match().playedAt()).isEqualTo(NOW);
+        assertThat(resend.created()).isFalse(); // no time compared on a resend without one
+        assertThat(matches.count()).isEqualTo(1);
+    }
+
+    @Test
+    void aPastDateWithTheTimeOfRegisteringIsKept() {
+        Instant yesterdayAtRegistration = NOW.minus(Duration.ofDays(1));
+
+        MatchDetails details = register(caller, new RegisterMatch.Command(UUID.randomUUID(), yesterdayAtRegistration,
+                sixFour(), regularTeams(), false)).details();
+
+        assertThat(details.match().playedAt()).isEqualTo(yesterdayAtRegistration);
+        assertThat(details.match().registeredAt()).isEqualTo(NOW);
+    }
+
+    @Test
     void futureMatchesAreRejectedBeyondTenMinutes() {
         RegisterMatch.Command tooLate = new RegisterMatch.Command(UUID.randomUUID(),
                 NOW.plus(Duration.ofMinutes(10)).plusSeconds(1), sixFour(), regularTeams(), false);
