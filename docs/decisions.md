@@ -41,11 +41,12 @@ points = games won by the player's team + (3 if the team won the match, otherwis
 - Scoring logic lives in a single isolated component.
 
 ### D-004 — Guests
-If at least one of the four participants is a guest, the match is saved (after a warning) but
-**no participant receives any points** (neither games nor bonus) and it does **not** count for the
-season's statistics or ranking (matches played, wins, losses, game difference): a season counts
-only its counted matches. It still counts for career statistics (league profile and global
-statistics), like matches outside any season. Guest status is never changed retroactively.
+A guest (a typed name instead of a registered player) does not change how a match counts: every
+valid match inside a season gives points (D-003) to its registered players and counts for the
+season's statistics and ranking, with or without guests. Guests themselves never receive points
+and are never ranked. Since points are derived (D-007), this applies to every match, including
+those registered before this rule and those of closed seasons (changed on 2026-10-19; until then
+a match with a guest gave no points).
 
 ### D-005 — Game difference
 Computed from the recorded final score, tie-break counted as one game (7–6 → +1 / −1).
@@ -169,8 +170,7 @@ the user who registered it. Once the server has it, only the administrator can c
 - A match is registered inside the league the user is in, and belongs to it. The registering
   user must be a member of that league.
 - Every registered player in a match must be a member of the league. Guest positions (a typed
-  name, D-004) are still allowed; a match with a guest gives no points to anyone and counts
-  only for career statistics (D-004).
+  name, D-004) are still allowed and count like any other match; the guests get no points.
 - Season ranking members: the league's members up to the season's end date, plus anyone who
   played in it. A member who leaves no longer appears in later seasons but stays in the
   seasons they played.
@@ -190,6 +190,17 @@ All existing users, seasons and matches move to a new **public** league named
 The current endpoints keep working, bound to this league, until the app with leagues is
 published; then they are removed.
 
+### D-024 — Full name
+- Besides the display name (how the user wants to be called, a nickname shown in rankings,
+  matches and notifications), every user has a **full name**: 3–100 characters, whitespace
+  normalized, at least two words (first and last name).
+- Required when signing up with e-mail and password. Signing in with Google fills it from the
+  Google account name (when it has at least two words); the display name keeps coming from it too.
+  Existing users are asked once to fill it in (they may skip); everyone can edit it in the profile.
+- Visible only to the user and to the administrators of their leagues (member list); rankings,
+  matches and player lists keep showing the display name.
+- Sign-up asks for the password twice and compares both in the app (the backend never sees it).
+
 ## Technical defaults (easy to change)
 
 - Display name: 2–40 characters, whitespace normalized. Initial value: name from the login
@@ -201,6 +212,10 @@ published; then they are removed.
 - Tie-break points: optional even for 7–6 / 5–4; when given, both values are required and the
   tie-break winner must be the match winner. No other limit (e.g. "first to 7") is enforced.
 - The user registering a match does not need to be one of its participants.
+- Registering a match: the user picks only the date (today or a past day); the app sends that date
+  with the time of registering on the phone, so a match saved offline keeps its day. Without a
+  time, the backend uses the moment it receives the match (and a resend without time is still
+  idempotent). League administrators may still change date and time in a correction.
 - Match time is kept with whole-second precision.
 - Ranking members of a season: every player registered up to the season's end date, plus anyone
   who played in it. The active season therefore lists everyone; a past season does not list

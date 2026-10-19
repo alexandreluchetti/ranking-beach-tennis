@@ -12,8 +12,8 @@ in any league without being a member.
 
 | Method | Path | Who | Notes |
 |---|---|---|---|
-| GET | `/api/me` | any user | Profile; created on first access. |
-| PATCH | `/api/me` | any user | Display name. |
+| GET | `/api/me` | any user | Profile (`displayName` = nickname, `fullName` or null); created on first access. |
+| PATCH | `/api/me` | any user | `displayName` and/or `fullName` (D-024). |
 | GET | `/api/me/statistics` | any user | Own statistics over every league, with `winRate`; no points (D-022). |
 | GET | `/api/me/invitations` | any user | Own pending league invitations. |
 | POST | `/api/me/invitations/{id}/accept` · `/reject` | invitee | Accepting joins the league. |
@@ -32,7 +32,7 @@ in any league without being a member.
 | POST | `/api/leagues/{id}/archive` · `/unarchive` | league admin · system admin | Archived leagues are read-only. |
 | POST | `/api/leagues/{id}/join` | any user | Public leagues only. |
 | POST | `/api/leagues/{id}/leave` | member | The last administrator cannot leave. |
-| GET | `/api/leagues/{id}/members` | member | Administrators first. |
+| GET | `/api/leagues/{id}/members` | member | Administrators first; `fullName` only for league administrators. |
 | DELETE | `/api/leagues/{id}/members/{playerId}` | league admin | Remove a member. |
 | PUT | `/api/leagues/{id}/members/{playerId}/role` | league admin | `{"role": "ADMIN" \| "MEMBER"}`. |
 | POST · DELETE | `/api/leagues/{id}/join-requests` · `/join-requests/mine` | non-member · requester | Request to join a private league; cancel it. |

@@ -27,7 +27,7 @@ import com.lucchetta.core.usecase.notification.PushDispatcher;
 import com.lucchetta.core.usecase.player.GetMyStatistics;
 import com.lucchetta.core.usecase.player.GetOrCreateCurrentPlayer;
 import com.lucchetta.core.usecase.player.QueryPlayers;
-import com.lucchetta.core.usecase.player.UpdateDisplayName;
+import com.lucchetta.core.usecase.player.UpdateProfile;
 import com.lucchetta.core.usecase.ranking.GetPlayerProfile;
 import com.lucchetta.core.usecase.ranking.GetSeasonRanking;
 import com.lucchetta.core.usecase.season.CreateSeason;
@@ -62,10 +62,10 @@ public class UseCaseConfiguration {
     }
 
     @Bean
-    UpdateDisplayName updateDisplayName(GetOrCreateCurrentPlayer getOrCreateCurrentPlayer,
-                                        PlayerRepository playerRepository,
-                                        Clock clock) {
-        return new UpdateDisplayName(getOrCreateCurrentPlayer, playerRepository, clock);
+    UpdateProfile updateProfile(GetOrCreateCurrentPlayer getOrCreateCurrentPlayer,
+                                PlayerRepository playerRepository,
+                                Clock clock) {
+        return new UpdateProfile(getOrCreateCurrentPlayer, playerRepository, clock);
     }
 
     @Bean

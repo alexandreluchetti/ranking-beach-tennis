@@ -3,6 +3,7 @@ package com.lucchetta.core.usecase.player;
 import com.lucchetta.core.domain.AuthIdentity;
 import com.lucchetta.core.domain.AuthenticatedUser;
 import com.lucchetta.core.domain.DisplayName;
+import com.lucchetta.core.domain.FullName;
 import com.lucchetta.core.domain.Player;
 import com.lucchetta.core.exception.InvalidDisplayNameException;
 import com.lucchetta.core.port.PlayerRepository;
@@ -25,7 +26,7 @@ import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
 
 @ExtendWith(MockitoExtension.class)
-class UpdateDisplayNameTest {
+class UpdateProfileTest {
 
     private static final Instant CREATED = Instant.parse("2026-10-01T10:00:00Z");
     private static final Instant NOW = Instant.parse("2026-10-12T15:00:00Z");
@@ -45,7 +46,7 @@ class UpdateDisplayNameTest {
         when(getOrCreateCurrentPlayer.execute(USER)).thenReturn(current);
         when(playerRepository.update(any())).thenAnswer(invocation -> invocation.getArgument(0));
 
-        Player result = useCase().execute(USER, "  Ana Paula ");
+        Player result = useCase().execute(USER, new UpdateProfile.Command("  Ana Paula ", null));
 
         assertThat(result.id()).isEqualTo(current.id());
         assertThat(result.displayName().value()).isEqualTo("Ana Paula");
@@ -58,7 +59,7 @@ class UpdateDisplayNameTest {
         Player current = new Player(UUID.randomUUID(), USER.identity(), null, new DisplayName("Ana"), CREATED, CREATED);
         when(getOrCreateCurrentPlayer.execute(USER)).thenReturn(current);
 
-        Player result = useCase().execute(USER, " Ana ");
+        Player result = useCase().execute(USER, new UpdateProfile.Command(" Ana ", null));
 
         assertThat(result).isEqualTo(current);
         verify(playerRepository, never()).update(any());
@@ -66,12 +67,34 @@ class UpdateDisplayNameTest {
 
     @Test
     void rejectsInvalidNameBeforeTouchingStorage() {
-        assertThatThrownBy(() -> useCase().execute(USER, "A"))
+        assertThatThrownBy(() -> useCase().execute(USER, new UpdateProfile.Command("A", null)))
                 .isInstanceOf(InvalidDisplayNameException.class);
         verifyNoInteractions(getOrCreateCurrentPlayer, playerRepository);
     }
 
-    private UpdateDisplayName useCase() {
-        return new UpdateDisplayName(getOrCreateCurrentPlayer, playerRepository, clock);
+    @Test
+    void setsTheFullNameKeepingTheDisplayName() {
+        Player current = new Player(UUID.randomUUID(), USER.identity(), null, new DisplayName("Ana"), CREATED, CREATED);
+        when(getOrCreateCurrentPlayer.execute(USER)).thenReturn(current);
+        when(playerRepository.update(any())).thenAnswer(invocation -> invocation.getArgument(0));
+
+        Player result = useCase().execute(USER, new UpdateProfile.Command(null, "  Ana   Paula  Souza "));
+
+        assertThat(result.fullName()).isEqualTo(new FullName("Ana Paula Souza"));
+        assertThat(result.displayName().value()).isEqualTo("Ana");
+        assertThat(result.updatedAt()).isEqualTo(NOW);
+    }
+
+    @Test
+    void fullNameNeedsFirstAndLastName() {
+        assertThatThrownBy(() -> useCase().execute(USER, new UpdateProfile.Command(null, "Ana")))
+                .hasMessage("INVALID_FULL_NAME");
+        assertThatThrownBy(() -> useCase().execute(USER, new UpdateProfile.Command(null, "A " + "b".repeat(99))))
+                .hasMessage("INVALID_FULL_NAME");
+        verifyNoInteractions(getOrCreateCurrentPlayer, playerRepository);
+    }
+
+    private UpdateProfile useCase() {
+        return new UpdateProfile(getOrCreateCurrentPlayer, playerRepository, clock);
     }
 }

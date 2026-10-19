@@ -7,8 +7,6 @@ package com.lucchetta.core.scoring;
 public enum NotCountedReason {
     /** The match was voided by the administrator. */
     VOIDED,
-    /** At least one participant was a guest (D-004). */
-    GUEST_PRESENT,
     /** The match date is not within any season. */
     NO_SEASON
 }

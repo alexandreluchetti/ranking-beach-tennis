@@ -29,14 +29,13 @@ class MatchNotificationComposerTest {
     }
 
     @Test
-    void explainsWhyAMatchGivesNoPoints() {
+    void guestMatchesGivePointsAndMatchesOutsideSeasonsExplainWhyNot() {
         MatchDetails guest = details(world.match(LocalDate.of(2026, 10, 4), 6, 4, MatchStatus.VALID,
                 world.anaAndGuestVsCaioAndDani()));
         MatchDetails noSeason = details(world.match(LocalDate.of(2026, 5, 10), 4, 6));
 
         assertThat(composer.registered(guest, world.ana.id()).body()).isEqualTo(
-                "04/10: Ana e Zé (convidado) 6–4 Caio e Dani. Você venceu. "
-                        + "A partida não vale pontos porque havia um convidado entre os participantes.");
+                "04/10: Ana e Zé (convidado) 6–4 Caio e Dani. Você venceu e recebeu 9 pontos.");
         assertThat(composer.registered(noSeason, world.ana.id()).body())
                 .endsWith("Você perdeu. A partida não vale pontos porque não há temporada nessa data.");
     }

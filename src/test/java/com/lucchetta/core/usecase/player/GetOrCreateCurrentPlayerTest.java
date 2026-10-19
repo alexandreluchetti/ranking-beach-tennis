@@ -3,6 +3,7 @@ package com.lucchetta.core.usecase.player;
 import com.lucchetta.core.domain.AuthIdentity;
 import com.lucchetta.core.domain.AuthenticatedUser;
 import com.lucchetta.core.domain.DisplayName;
+import com.lucchetta.core.domain.FullName;
 import com.lucchetta.core.domain.Player;
 import com.lucchetta.core.port.PlayerRepository;
 import org.junit.jupiter.api.Test;
@@ -56,6 +57,16 @@ class GetOrCreateCurrentPlayerTest {
         assertThat(candidate.email()).isEqualTo("ana@example.com");
         assertThat(candidate.identity()).isEqualTo(IDENTITY);
         assertThat(candidate.createdAt()).isEqualTo(NOW);
+        assertThat(candidate.fullName()).isEqualTo(new FullName("Ana Souza")); // D-024: from the provider
+    }
+
+    @Test
+    void noFullNameWhenTheProviderNameHasASingleWordOrIsMissing() {
+        whenInsertedReturnStored();
+
+        useCase().execute(user("Ana", "ana@example.com"));
+
+        assertThat(capturedCandidate().fullName()).isNull();
     }
 
     @Test

@@ -2,6 +2,7 @@ package com.lucchetta.core.usecase.player;
 
 import com.lucchetta.core.domain.AuthenticatedUser;
 import com.lucchetta.core.domain.DisplayName;
+import com.lucchetta.core.domain.FullName;
 import com.lucchetta.core.domain.Player;
 import com.lucchetta.core.exception.InvalidDisplayNameException;
 import com.lucchetta.core.port.PlayerRepository;
@@ -12,7 +13,8 @@ import java.util.UUID;
 
 /**
  * Returns the player profile of the caller, creating it on first access. The initial display
- * name comes from the provider's name, then from the e-mail local part, then a default.
+ * name comes from the provider's name, then from the e-mail local part, then a default; the
+ * initial full name is the provider's name when it has a first and a last name (D-024).
  */
 public class GetOrCreateCurrentPlayer {
 
@@ -33,8 +35,8 @@ public class GetOrCreateCurrentPlayer {
 
     private Player create(AuthenticatedUser user) {
         Instant now = clock.instant();
-        Player candidate = new Player(
-                UUID.randomUUID(), user.identity(), user.email(), initialName(user), now, now);
+        Player candidate = new Player(UUID.randomUUID(), user.identity(), user.email(), initialName(user), now, now,
+                FullName.orNull(user.name()));
         playerRepository.insertIfAbsent(candidate);
         return playerRepository.findByIdentity(user.identity())
                 .orElseThrow(() -> new IllegalStateException("Player not found after insert"));
