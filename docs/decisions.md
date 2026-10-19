@@ -190,6 +190,17 @@ All existing users, seasons and matches move to a new **public** league named
 The current endpoints keep working, bound to this league, until the app with leagues is
 published; then they are removed.
 
+### D-024 — Full name
+- Besides the display name (how the user wants to be called, a nickname shown in rankings,
+  matches and notifications), every user has a **full name**: 3–100 characters, whitespace
+  normalized, at least two words (first and last name).
+- Required when signing up with e-mail and password. Signing in with Google fills it from the
+  Google account name (when it has at least two words); the display name keeps coming from it too.
+  Existing users are asked once to fill it in (they may skip); everyone can edit it in the profile.
+- Visible only to the user and to the administrators of their leagues (member list); rankings,
+  matches and player lists keep showing the display name.
+- Sign-up asks for the password twice and compares both in the app (the backend never sees it).
+
 ## Technical defaults (easy to change)
 
 - Display name: 2–40 characters, whitespace normalized. Initial value: name from the login

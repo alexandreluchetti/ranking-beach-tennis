@@ -36,11 +36,13 @@ public class LeagueController {
     public record LeaguePageResponse(List<LeagueResponse> items, int page, int size, boolean hasNext) {
     }
 
-    public record MemberResponse(UUID playerId, String displayName, LeagueRole role, Instant joinedAt) {
+    /** @param fullName only for callers who administer the league; null otherwise or when not filled in */
+    public record MemberResponse(UUID playerId, String displayName, String fullName, LeagueRole role,
+                                 Instant joinedAt) {
 
         static MemberResponse from(MemberView view) {
-            return new MemberResponse(view.member().playerId(), view.displayName(), view.member().role(),
-                    view.member().joinedAt());
+            return new MemberResponse(view.member().playerId(), view.displayName(), view.fullName(),
+                    view.member().role(), view.member().joinedAt());
         }
     }
 

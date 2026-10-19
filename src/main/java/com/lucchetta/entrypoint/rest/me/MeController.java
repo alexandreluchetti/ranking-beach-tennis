@@ -4,7 +4,7 @@ import com.lucchetta.core.domain.AuthenticatedUser;
 import com.lucchetta.core.stats.PlayerStats;
 import com.lucchetta.core.usecase.player.GetMyStatistics;
 import com.lucchetta.core.usecase.player.GetOrCreateCurrentPlayer;
-import com.lucchetta.core.usecase.player.UpdateDisplayName;
+import com.lucchetta.core.usecase.player.UpdateProfile;
 import com.lucchetta.entrypoint.security.CurrentUserProvider;
 import io.swagger.v3.oas.annotations.Operation;
 import jakarta.validation.Valid;
@@ -35,16 +35,16 @@ public class MeController {
 
     private final CurrentUserProvider currentUserProvider;
     private final GetOrCreateCurrentPlayer getOrCreateCurrentPlayer;
-    private final UpdateDisplayName updateDisplayName;
+    private final UpdateProfile updateProfile;
     private final GetMyStatistics getMyStatistics;
 
     public MeController(CurrentUserProvider currentUserProvider,
                         GetOrCreateCurrentPlayer getOrCreateCurrentPlayer,
-                        UpdateDisplayName updateDisplayName,
+                        UpdateProfile updateProfile,
                         GetMyStatistics getMyStatistics) {
         this.currentUserProvider = currentUserProvider;
         this.getOrCreateCurrentPlayer = getOrCreateCurrentPlayer;
-        this.updateDisplayName = updateDisplayName;
+        this.updateProfile = updateProfile;
         this.getMyStatistics = getMyStatistics;
     }
 
@@ -56,10 +56,11 @@ public class MeController {
     }
 
     @PatchMapping
-    @Operation(summary = "Updates the caller's display name")
+    @Operation(summary = "Updates the caller's display name (nickname) and/or full name")
     public MeResponse update(@Valid @RequestBody UpdateMeRequest request) {
         AuthenticatedUser user = currentUserProvider.get();
-        return MeResponse.from(updateDisplayName.execute(user, request.displayName()), user.admin());
+        return MeResponse.from(updateProfile.execute(user,
+                new UpdateProfile.Command(request.displayName(), request.fullName())), user.admin());
     }
 
     @GetMapping("/statistics")

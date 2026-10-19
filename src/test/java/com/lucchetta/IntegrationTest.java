@@ -55,7 +55,10 @@ public abstract class IntegrationTest {
     protected static RequestPostProcessor token(String subject, String name, String email) {
         return jwt()
                 .jwt(builder -> {
-                    builder.subject(subject).claim("name", name);
+                    builder.subject(subject);
+                    if (name != null) {
+                        builder.claim("name", name);
+                    }
                     if (email != null) {
                         builder.claim("email", email);
                     }
