@@ -41,11 +41,12 @@ points = games won by the player's team + (3 if the team won the match, otherwis
 - Scoring logic lives in a single isolated component.
 
 ### D-004 — Guests
-If at least one of the four participants is a guest, the match is saved (after a warning) but
-**no participant receives any points** (neither games nor bonus) and it does **not** count for the
-season's statistics or ranking (matches played, wins, losses, game difference): a season counts
-only its counted matches. It still counts for career statistics (league profile and global
-statistics), like matches outside any season. Guest status is never changed retroactively.
+A guest (a typed name instead of a registered player) does not change how a match counts: every
+valid match inside a season gives points (D-003) to its registered players and counts for the
+season's statistics and ranking, with or without guests. Guests themselves never receive points
+and are never ranked. Since points are derived (D-007), this applies to every match, including
+those registered before this rule and those of closed seasons (changed on 2026-10-19; until then
+a match with a guest gave no points).
 
 ### D-005 — Game difference
 Computed from the recorded final score, tie-break counted as one game (7–6 → +1 / −1).
@@ -169,8 +170,7 @@ the user who registered it. Once the server has it, only the administrator can c
 - A match is registered inside the league the user is in, and belongs to it. The registering
   user must be a member of that league.
 - Every registered player in a match must be a member of the league. Guest positions (a typed
-  name, D-004) are still allowed; a match with a guest gives no points to anyone and counts
-  only for career statistics (D-004).
+  name, D-004) are still allowed and count like any other match; the guests get no points.
 - Season ranking members: the league's members up to the season's end date, plus anyone who
   played in it. A member who leaves no longer appears in later seasons but stays in the
   seasons they played.

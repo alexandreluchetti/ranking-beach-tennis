@@ -62,24 +62,24 @@ class GetSeasonRankingTest {
     }
 
     @Test
-    void guestMatchesDoNotCountForTheSeason() {
+    void guestMatchesCountForTheSeasonAndGivePointsToRegisteredPlayers() {
         world.match(LocalDate.of(2026, 10, 4), 6, 2, MatchStatus.VALID, world.anaAndGuestVsCaioAndDani());
 
         List<RankingEntry> ranking = useCase.current(caller, TestLeague.ID).orElseThrow().entries();
 
-        assertThat(entry(ranking, world.ana.id()).stats()).isEqualTo(PlayerStats.EMPTY);
-        assertThat(entry(ranking, world.caio.id()).stats()).isEqualTo(PlayerStats.EMPTY);
+        assertThat(entry(ranking, world.ana.id()).stats()).isEqualTo(new PlayerStats(1, 1, 0, 6, 2, 9));
+        assertThat(entry(ranking, world.caio.id()).stats()).isEqualTo(new PlayerStats(1, 0, 1, 2, 6, 2));
     }
 
     @Test
-    void seasonStatisticsCountOnlyTheCountedMatches() {
-        world.match(LocalDate.of(2026, 10, 4), 0, 6);   // counted: Ana and Beto lose 0-6
-        world.match(LocalDate.of(2026, 10, 5), 6, 2, MatchStatus.VALID, world.anaAndGuestVsCaioAndDani()); // guest
+    void seasonStatisticsCountEveryValidMatchOfTheSeason() {
+        world.match(LocalDate.of(2026, 10, 4), 0, 6);   // Ana and Beto lose 0-6
+        world.match(LocalDate.of(2026, 10, 5), 6, 2, MatchStatus.VALID, world.anaAndGuestVsCaioAndDani()); // +9
         world.match(LocalDate.of(2026, 5, 10), 6, 4);   // outside any season
 
         RankingEntry ana = entry(useCase.current(caller, TestLeague.ID).orElseThrow().entries(), world.ana.id());
 
-        assertThat(ana.stats()).isEqualTo(new PlayerStats(1, 0, 1, 0, 6, 0));
+        assertThat(ana.stats()).isEqualTo(new PlayerStats(2, 1, 1, 6, 8, 9));
     }
 
     @Test

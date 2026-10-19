@@ -119,7 +119,6 @@ public class MatchNotificationComposer {
 
     private static String notCounted(NotCountedReason reason) {
         return switch (reason) {
-            case GUEST_PRESENT -> "A partida não vale pontos porque havia um convidado entre os participantes.";
             case NO_SEASON -> "A partida não vale pontos porque não há temporada nessa data.";
             case VOIDED -> "A partida está anulada.";
         };

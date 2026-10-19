@@ -119,7 +119,7 @@ class RegisterMatchTest {
     }
 
     @Test
-    void guestMatchIsStoredButGivesNoPoints() {
+    void guestMatchGivesPointsToTheRegisteredPlayers() {
         activeSeason();
         List<Participant> withGuest = List.of(
                 Participant.player(Team.A, 1, ana.id()), Participant.player(Team.A, 2, beto.id()),
@@ -128,10 +128,9 @@ class RegisterMatchTest {
         MatchDetails details = register(caller, command(UUID.randomUUID(), sixFour(), withGuest)).details();
 
         assertThat(matches.count()).isEqualTo(1);
-        assertThat(details.eligibility().counted()).isFalse();
-        assertThat(details.eligibility().reason()).isEqualTo(NotCountedReason.GUEST_PRESENT);
-        assertThat(details.pointsFor(Team.A)).isZero();
-        assertThat(details.pointsFor(Team.B)).isZero();
+        assertThat(details.eligibility().counted()).isTrue();
+        assertThat(details.pointsFor(Team.A)).isEqualTo(9);
+        assertThat(details.pointsFor(Team.B)).isEqualTo(4);
     }
 
     @Test

@@ -111,18 +111,19 @@ class MatchApiIT extends IntegrationTest {
     }
 
     @Test
-    void guestMatchIsSavedWithoutPoints() throws Exception {
+    void guestMatchGivesPointsToTheRegisteredPlayersOnly() throws Exception {
         createActiveSeason();
 
         register(body(UUID.randomUUID().toString(), 6, 4, player(ana), guest("Zé"), player(caio), guest(null), false))
                 .andExpect(status().isCreated())
-                .andExpect(jsonPath("$.counted").value(false))
-                .andExpect(jsonPath("$.notCountedReason").value("GUEST_PRESENT"))
-                .andExpect(jsonPath("$.teamA[0].points").value(0))
+                .andExpect(jsonPath("$.counted").value(true))
+                .andExpect(jsonPath("$.notCountedReason").doesNotExist())
+                .andExpect(jsonPath("$.teamA[0].points").value(9))
+                .andExpect(jsonPath("$.teamA[1].points").value(0))
                 .andExpect(jsonPath("$.teamA[1].guest").value(true))
                 .andExpect(jsonPath("$.teamA[1].guestName").value("Zé"))
                 .andExpect(jsonPath("$.teamB[1].guestName").doesNotExist())
-                .andExpect(jsonPath("$.teamB[0].points").value(0));
+                .andExpect(jsonPath("$.teamB[0].points").value(4));
     }
 
     @Test
