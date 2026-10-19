@@ -39,6 +39,7 @@ All configuration lives in `.env` on the server (copy `.env.example`). Never com
 | Server IP | `179.236.77.80` |
 | DNS | Hostinger: `A api → 179.236.77.80`, TTL 300 |
 | Web app origins (CORS) | `https://ranking-beach-tennis.web.app`, `https://ranking-beach-tennis.firebaseapp.com` |
+| Repository on the server | `/root/ranking-beach-tennis` (commands run as `root`) |
 
 ## Server setup (Hostinger)
 
@@ -123,8 +124,16 @@ migrations: `docker compose --profile prod exec db-backup pg_dump --format=custo
 
 ## Backups and restore
 
-Dumps are written to `./backups` on the server. Copy them elsewhere regularly
-(`scp user@server:ranking-beach-tennis/backups/*.dump .`).
+Dumps are written to `./backups` on the server, the **same disk** as the database: they do not
+survive losing the server (rebuild, cancelled plan, disk failure). Copy them off the server
+regularly, from your computer:
+
+```bash
+scp root@179.236.77.80:/root/ranking-beach-tennis/backups/*.dump .
+```
+
+Hostinger VPS snapshots (hPanel → VPS → Snapshots) are a second, whole-server copy; check whether
+the plan charges for them.
 
 Restore (replaces the current data):
 
@@ -134,6 +143,35 @@ docker compose --profile prod exec -T db-backup pg_restore --clean --if-exists -
   --dbname=ranking /backups/<file>.dump
 docker compose --profile prod start backend
 ```
+
+## Restarting the server
+
+Rebooting the VPS (or a power cycle) keeps every piece of data: the database lives in the
+`postgres-data` Docker volume and the dumps in `./backups`, both on the server's disk.
+
+- Docker starts on boot (enabled by the official install script) and every service has
+  `restart: unless-stopped`, so PostgreSQL, the API, Caddy and the backup job come back by
+  themselves. The API is unavailable for a few minutes meanwhile.
+- After an abrupt power cycle PostgreSQL replays its write-ahead log on start: committed data is
+  kept; only a write in flight at that instant is lost.
+
+Before restarting, check that Docker starts on boot (`enabled`):
+
+```bash
+systemctl is-enabled docker
+```
+
+After restarting, check the services (`backend` and `postgres` healthy) and the API:
+
+```bash
+cd /root/ranking-beach-tennis && docker compose --profile prod ps
+curl https://api.ranking-beach-tennis.tech/actuator/health
+```
+
+**What does erase the data:** reinstalling the OS or rebuilding / changing the template of the VPS
+in hPanel (formats the disk, dumps included), cancelling the plan, and `docker compose down -v`
+(`-v` deletes the database volume; `down` without it is safe). Copy the dumps off the server
+before any of these.
 
 ## Operations
 
