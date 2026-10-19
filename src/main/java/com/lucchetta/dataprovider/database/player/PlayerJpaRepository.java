@@ -19,8 +19,9 @@ interface PlayerJpaRepository extends JpaRepository<PlayerEntity, UUID> {
 
     @Modifying
     @Query(value = """
-            insert into app_user (id, auth_provider, auth_subject, email, display_name, created_at, updated_at)
-            values (:id, :authProvider, :authSubject, :email, :displayName, :createdAt, :updatedAt)
+            insert into app_user (id, auth_provider, auth_subject, email, display_name, full_name, created_at,
+                                  updated_at)
+            values (:id, :authProvider, :authSubject, :email, :displayName, :fullName, :createdAt, :updatedAt)
             on conflict (auth_provider, auth_subject) do nothing
             """, nativeQuery = true)
     void insertIfAbsent(@Param("id") UUID id,
@@ -28,6 +29,7 @@ interface PlayerJpaRepository extends JpaRepository<PlayerEntity, UUID> {
                         @Param("authSubject") String authSubject,
                         @Param("email") String email,
                         @Param("displayName") String displayName,
+                        @Param("fullName") String fullName,
                         @Param("createdAt") Instant createdAt,
                         @Param("updatedAt") Instant updatedAt);
 }

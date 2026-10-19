@@ -64,9 +64,9 @@ class ScoringAndEligibilityTest {
     }
 
     @Test
-    void anyGuestMeansNoPointsForAnyone() {
+    void guestsDoNotChangeWhetherAMatchCounts() {
         assertThat(eligibility.evaluate(match(sixFour(), withGuest()), SEASON))
-                .isEqualTo(RankingEligibility.notCounted(NotCountedReason.GUEST_PRESENT));
+                .isEqualTo(RankingEligibility.COUNTED);
     }
 
     @Test
@@ -76,13 +76,13 @@ class ScoringAndEligibilityTest {
     }
 
     @Test
-    void reasonPrecedenceIsVoidedThenGuestThenNoSeason() {
+    void reasonPrecedenceIsVoidedThenNoSeason() {
         Match voidedWithGuest = new Match(UUID.randomUUID(), TestLeague.ID, PLAYED, sixFour(), withGuest(),
                 MatchStatus.VOIDED, UUID.randomUUID(), PLAYED, PLAYED);
 
         assertThat(eligibility.evaluate(voidedWithGuest, null).reason()).isEqualTo(NotCountedReason.VOIDED);
         assertThat(eligibility.evaluate(match(sixFour(), withGuest()), null).reason())
-                .isEqualTo(NotCountedReason.GUEST_PRESENT);
+                .isEqualTo(NotCountedReason.NO_SEASON);
     }
 
     private static Score sixFour() {

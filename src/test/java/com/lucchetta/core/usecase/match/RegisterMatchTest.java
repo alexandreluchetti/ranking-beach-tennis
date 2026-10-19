@@ -119,7 +119,7 @@ class RegisterMatchTest {
     }
 
     @Test
-    void guestMatchIsStoredButGivesNoPoints() {
+    void guestMatchGivesPointsToTheRegisteredPlayers() {
         activeSeason();
         List<Participant> withGuest = List.of(
                 Participant.player(Team.A, 1, ana.id()), Participant.player(Team.A, 2, beto.id()),
@@ -128,10 +128,9 @@ class RegisterMatchTest {
         MatchDetails details = register(caller, command(UUID.randomUUID(), sixFour(), withGuest)).details();
 
         assertThat(matches.count()).isEqualTo(1);
-        assertThat(details.eligibility().counted()).isFalse();
-        assertThat(details.eligibility().reason()).isEqualTo(NotCountedReason.GUEST_PRESENT);
-        assertThat(details.pointsFor(Team.A)).isZero();
-        assertThat(details.pointsFor(Team.B)).isZero();
+        assertThat(details.eligibility().counted()).isTrue();
+        assertThat(details.pointsFor(Team.A)).isEqualTo(9);
+        assertThat(details.pointsFor(Team.B)).isEqualTo(4);
     }
 
     @Test
@@ -230,6 +229,31 @@ class RegisterMatchTest {
                 sixFour(), regularTeams(), false));
 
         assertThat(matches.count()).isEqualTo(3);
+    }
+
+    @Test
+    void withoutATimeTheMatchIsPlayedWhenTheServerReceivesIt() {
+        UUID id = UUID.randomUUID();
+
+        RegisterMatch.Result first = register(caller, new RegisterMatch.Command(id, null, sixFour(), regularTeams(),
+                false));
+        RegisterMatch.Result resend = register(caller, new RegisterMatch.Command(id, null, sixFour(), regularTeams(),
+                false));
+
+        assertThat(first.details().match().playedAt()).isEqualTo(NOW);
+        assertThat(resend.created()).isFalse(); // no time compared on a resend without one
+        assertThat(matches.count()).isEqualTo(1);
+    }
+
+    @Test
+    void aPastDateWithTheTimeOfRegisteringIsKept() {
+        Instant yesterdayAtRegistration = NOW.minus(Duration.ofDays(1));
+
+        MatchDetails details = register(caller, new RegisterMatch.Command(UUID.randomUUID(), yesterdayAtRegistration,
+                sixFour(), regularTeams(), false)).details();
+
+        assertThat(details.match().playedAt()).isEqualTo(yesterdayAtRegistration);
+        assertThat(details.match().registeredAt()).isEqualTo(NOW);
     }
 
     @Test

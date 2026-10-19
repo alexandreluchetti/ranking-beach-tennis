@@ -12,8 +12,8 @@ import java.util.UUID;
 
 /**
  * Statistics inclusion rule, kept apart from scoring: every valid match counts for career
- * statistics, including guest matches and matches outside any season (D-004); voided matches
- * never count. Season statistics use only the counted matches (see SeasonRankingBuilder).
+ * statistics, with or without guests and inside or outside seasons; voided matches never count.
+ * Season statistics use only the season's counted matches (see SeasonRankingBuilder).
  * Points come from the already evaluated {@link MatchDetails}, so they are only non-zero for
  * matches that count for the ranking.
  */

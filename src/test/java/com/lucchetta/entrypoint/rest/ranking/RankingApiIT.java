@@ -80,15 +80,14 @@ class RankingApiIT extends IntegrationTest {
         mockMvc.perform(get("/api/matches").with(userToken()))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.items.length()").value(2))
-                .andExpect(jsonPath("$.items[0].notCountedReason").value("GUEST_PRESENT"))
+                .andExpect(jsonPath("$.items[0].teamA[1].guest").value(true))
+                .andExpect(jsonPath("$.items[0].counted").value(true)) // guests do not matter (D-004)
                 .andExpect(jsonPath("$.hasNext").value(false));
         mockMvc.perform(get("/api/matches").param("outcome", "COUNTED").with(userToken()))
-                .andExpect(jsonPath("$.items.length()").value(1))
-                .andExpect(jsonPath("$.items[0].counted").value(true));
+                .andExpect(jsonPath("$.items.length()").value(2));
         mockMvc.perform(get("/api/matches").param("outcome", "NOT_COUNTED").param("outcome", "VOIDED")
                         .with(userToken()))
-                .andExpect(jsonPath("$.items.length()").value(1))
-                .andExpect(jsonPath("$.items[0].teamA[1].guest").value(true));
+                .andExpect(jsonPath("$.items.length()").value(0));
         mockMvc.perform(get("/api/matches").param("playerId", beto).with(userToken()))
                 .andExpect(jsonPath("$.items.length()").value(1));
         mockMvc.perform(get("/api/matches").param("size", "1").with(userToken()))
@@ -115,11 +114,11 @@ class RankingApiIT extends IntegrationTest {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.displayName").value("Ana"))
                 .andExpect(jsonPath("$.currentSeason.position").value(1))
-                .andExpect(jsonPath("$.currentSeason.stats.points").value(9))
-                // The guest match counts only for the career (D-004).
-                .andExpect(jsonPath("$.currentSeason.stats.matchesPlayed").value(1))
-                .andExpect(jsonPath("$.currentSeason.stats.wins").value(1))
-                .andExpect(jsonPath("$.currentSeason.stats.gameDifference").value(2))
+                // The guest match counts like any other (D-004): 9 + 9.
+                .andExpect(jsonPath("$.currentSeason.stats.points").value(18))
+                .andExpect(jsonPath("$.currentSeason.stats.matchesPlayed").value(2))
+                .andExpect(jsonPath("$.currentSeason.stats.wins").value(2))
+                .andExpect(jsonPath("$.currentSeason.stats.gameDifference").value(7))
                 .andExpect(jsonPath("$.career.matchesPlayed").value(2))
                 .andExpect(jsonPath("$.career.gameDifference").value(7))
                 .andExpect(jsonPath("$.pastSeasons.length()").value(0));

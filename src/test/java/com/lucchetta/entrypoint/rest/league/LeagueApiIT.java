@@ -120,6 +120,22 @@ class LeagueApiIT extends IntegrationTest {
     }
 
     @Test
+    void onlyLeagueAdministratorsSeeFullNames() throws Exception {
+        RequestPostProcessor admin = token("full-admin", "Ana Souza", null);
+        RequestPostProcessor member = token("full-member", "Bruno Lima", null);
+        String league = createLeague(admin, "Liga Nomes", "PUBLIC");
+        mockMvc.perform(post("/api/leagues/" + league + "/join").with(member)).andExpect(status().isOk());
+
+        mockMvc.perform(get("/api/leagues/" + league + "/members").with(admin))
+                .andExpect(jsonPath("$[0].fullName").value("Ana Souza"))
+                .andExpect(jsonPath("$[1].fullName").value("Bruno Lima"));
+        mockMvc.perform(get("/api/leagues/" + league + "/members").with(member))
+                .andExpect(jsonPath("$[0].displayName").value("Ana Souza"))
+                .andExpect(jsonPath("$[0].fullName").isEmpty())
+                .andExpect(jsonPath("$[1].fullName").isEmpty());
+    }
+
+    @Test
     void administratorsManageMembersAndRoles() throws Exception {
         String league = createLeague(ANA, "Liga Aberta", "PUBLIC");
         String bruno = joinAndGetPlayerId(league, BRUNO);

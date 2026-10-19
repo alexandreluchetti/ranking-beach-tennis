@@ -101,12 +101,14 @@ class LeagueScopedApiIT extends IntegrationTest {
     }
 
     @Test
-    void guestsAreAllowedButGiveNoPoints() throws Exception {
+    void guestMatchesGivePointsToTheRegisteredPlayers() throws Exception {
         createSeason(ANA, league).andExpect(status().isCreated());
 
         register(BETO, league, ana, beto, caio, null)
                 .andExpect(status().isCreated())
-                .andExpect(jsonPath("$.counted").value(false));
+                .andExpect(jsonPath("$.counted").value(true))
+                .andExpect(jsonPath("$.teamA[0].points").value(9))
+                .andExpect(jsonPath("$.teamB[1].points").value(0));
     }
 
     @Test

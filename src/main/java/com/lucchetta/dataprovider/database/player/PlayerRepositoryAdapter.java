@@ -2,6 +2,7 @@ package com.lucchetta.dataprovider.database.player;
 
 import com.lucchetta.core.domain.AuthIdentity;
 import com.lucchetta.core.domain.DisplayName;
+import com.lucchetta.core.domain.FullName;
 import com.lucchetta.core.domain.Player;
 import com.lucchetta.core.port.PlayerRepository;
 import org.springframework.stereotype.Component;
@@ -52,6 +53,7 @@ public class PlayerRepositoryAdapter implements PlayerRepository {
                 player.identity().subject(),
                 player.email(),
                 player.displayName().value(),
+                player.fullName() == null ? null : player.fullName().value(),
                 player.createdAt(),
                 player.updatedAt());
     }
@@ -62,6 +64,7 @@ public class PlayerRepositoryAdapter implements PlayerRepository {
         PlayerEntity entity = jpaRepository.findById(player.id())
                 .orElseThrow(() -> new IllegalStateException("Player not found: " + player.id()));
         entity.setDisplayName(player.displayName().value());
+        entity.setFullName(player.fullName() == null ? null : player.fullName().value());
         entity.setUpdatedAt(player.updatedAt());
         return toDomain(jpaRepository.save(entity));
     }
@@ -73,6 +76,7 @@ public class PlayerRepositoryAdapter implements PlayerRepository {
                 entity.getEmail(),
                 new DisplayName(entity.getDisplayName()),
                 entity.getCreatedAt(),
-                entity.getUpdatedAt());
+                entity.getUpdatedAt(),
+                entity.getFullName() == null ? null : new FullName(entity.getFullName()));
     }
 }

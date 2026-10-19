@@ -27,6 +27,9 @@ public class PlayerEntity {
     @Column(name = "display_name", nullable = false)
     private String displayName;
 
+    @Column(name = "full_name")
+    private String fullName;
+
     @Column(name = "created_at", nullable = false)
     private Instant createdAt;
 
@@ -69,6 +72,14 @@ public class PlayerEntity {
 
     public void setDisplayName(String displayName) {
         this.displayName = displayName;
+    }
+
+    public String getFullName() {
+        return fullName;
+    }
+
+    public void setFullName(String fullName) {
+        this.fullName = fullName;
     }
 
     public Instant getCreatedAt() {

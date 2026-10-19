@@ -4,9 +4,14 @@ import com.lucchetta.core.domain.Player;
 
 import java.util.UUID;
 
-public record MeResponse(UUID id, String displayName, String email, boolean admin) {
+/**
+ * @param displayName how the user wants to be called (nickname), shown in rankings and matches
+ * @param fullName    first and last name; null until the user fills it in (the app asks for it)
+ */
+public record MeResponse(UUID id, String displayName, String fullName, String email, boolean admin) {
 
     static MeResponse from(Player player, boolean admin) {
-        return new MeResponse(player.id(), player.displayName().value(), player.email(), admin);
+        return new MeResponse(player.id(), player.displayName().value(),
+                player.fullName() == null ? null : player.fullName().value(), player.email(), admin);
     }
 }

@@ -83,10 +83,11 @@ class MatchAdministrationTest {
     }
 
     @Test
-    void correctionCanSwapParticipantsAndChangeEligibility() {
+    void correctionCanReplaceAGuestByAPlayer() {
         Match guestMatch = world.match(LocalDate.of(2026, 10, 5), 6, 1, MatchStatus.VALID,
                 world.anaAndGuestVsCaioAndDani());
-        assertThat(pointsOf(world.ana)).isEqualTo(9);
+        assertThat(pointsOf(world.ana)).isEqualTo(18); // the guest match already counts (D-004)
+        assertThat(pointsOf(world.beto)).isEqualTo(9);
 
         MatchDetails corrected = correct(admin, new MatchAdministration.Correction(guestMatch.id(),
                 guestMatch.version(), guestMatch.playedAt(), guestMatch.score(), List.of(

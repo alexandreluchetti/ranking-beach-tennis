@@ -43,8 +43,7 @@ public final class SeasonRankingBuilder {
      */
     public static List<RankingEntry> build(Season season, Collection<MatchDetails> matches,
                                            Collection<LeagueMember> members, Collection<Player> players) {
-        // Only matches that count for the ranking (D-004): a guest match gives no points and does not
-        // count for the season's statistics either; career statistics keep every valid match.
+        // Only the season's matches that count for the ranking (not voided); guests do not matter (D-004).
         List<MatchDetails> seasonMatches = matches.stream()
                 .filter(d -> d.season() != null && d.season().id().equals(season.id()))
                 .filter(d -> d.eligibility().counted())

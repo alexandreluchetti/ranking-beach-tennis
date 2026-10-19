@@ -111,18 +111,19 @@ class MatchApiIT extends IntegrationTest {
     }
 
     @Test
-    void guestMatchIsSavedWithoutPoints() throws Exception {
+    void guestMatchGivesPointsToTheRegisteredPlayersOnly() throws Exception {
         createActiveSeason();
 
         register(body(UUID.randomUUID().toString(), 6, 4, player(ana), guest("Zé"), player(caio), guest(null), false))
                 .andExpect(status().isCreated())
-                .andExpect(jsonPath("$.counted").value(false))
-                .andExpect(jsonPath("$.notCountedReason").value("GUEST_PRESENT"))
-                .andExpect(jsonPath("$.teamA[0].points").value(0))
+                .andExpect(jsonPath("$.counted").value(true))
+                .andExpect(jsonPath("$.notCountedReason").doesNotExist())
+                .andExpect(jsonPath("$.teamA[0].points").value(9))
+                .andExpect(jsonPath("$.teamA[1].points").value(0))
                 .andExpect(jsonPath("$.teamA[1].guest").value(true))
                 .andExpect(jsonPath("$.teamA[1].guestName").value("Zé"))
                 .andExpect(jsonPath("$.teamB[1].guestName").doesNotExist())
-                .andExpect(jsonPath("$.teamB[0].points").value(0));
+                .andExpect(jsonPath("$.teamB[0].points").value(4));
     }
 
     @Test
@@ -177,6 +178,24 @@ class MatchApiIT extends IntegrationTest {
         return mockMvc.perform(post("/api/matches").with(token("uid-ana", "Ana", null))
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(body));
+    }
+
+    @Test
+    void withoutPlayedAtTheMatchTakesTheMomentItIsReceived() throws Exception {
+        createActiveSeason();
+        String id = UUID.randomUUID().toString();
+        String withoutTime = body(id, 6, 4, player(ana), player(beto), player(caio), player(dani), false)
+                .replaceFirst("\"playedAt\": \"[^\"]+\", ", "");
+        OffsetDateTime before = OffsetDateTime.now().minusSeconds(1);
+
+        String created = register(withoutTime)
+                .andExpect(status().isCreated())
+                .andExpect(jsonPath("$.counted").value(true))
+                .andReturn().getResponse().getContentAsString();
+        register(withoutTime).andExpect(status().isOk()); // idempotent resend, no time to compare
+
+        OffsetDateTime stored = OffsetDateTime.parse(JsonPath.read(created, "$.playedAt"));
+        assertThat(stored).isBetween(before, OffsetDateTime.now().plusSeconds(1));
     }
 
     private String body(String id, int teamAGames, int teamBGames, String a1, String a2, String b1, String b2,

@@ -16,6 +16,7 @@ import java.util.Comparator;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
+import java.util.function.Function;
 import java.util.stream.Collectors;
 
 /**
@@ -108,13 +109,16 @@ public class LeagueMembership {
         });
     }
 
-    /** Members of the league, administrators first, then by name. Members only. */
+    /**
+     * Members of the league, administrators first, then by name. Members only; full names only for
+     * those who administer the league (D-024).
+     */
     public List<MemberView> members(AuthenticatedUser user, UUID leagueId) {
-        leagueAccess.requireMember(user, leagueId);
+        boolean administrator = leagueAccess.requireMember(user, leagueId).canAdminister();
         List<LeagueMember> members = memberRepository.findByLeague(leagueId);
-        Map<UUID, String> names = names(members);
+        Map<UUID, Player> players = players(members);
         return members.stream()
-                .map(member -> new MemberView(member, names.get(member.playerId())))
+                .map(member -> view(member, players.get(member.playerId()), administrator))
                 .sorted(Comparator.comparing((MemberView view) -> view.member().role())
                         .thenComparing(view -> view.displayName().toLowerCase()))
                 .toList();
@@ -133,11 +137,16 @@ public class LeagueMembership {
     }
 
     private MemberView withName(LeagueMember member) {
-        return new MemberView(member, names(List.of(member)).get(member.playerId()));
+        return view(member, players(List.of(member)).get(member.playerId()), true);
     }
 
-    private Map<UUID, String> names(List<LeagueMember> members) {
+    private static MemberView view(LeagueMember member, Player player, boolean withFullName) {
+        String fullName = withFullName && player.fullName() != null ? player.fullName().value() : null;
+        return new MemberView(member, player.displayName().value(), fullName);
+    }
+
+    private Map<UUID, Player> players(List<LeagueMember> members) {
         return playerRepository.findAllByIds(members.stream().map(LeagueMember::playerId).toList()).stream()
-                .collect(Collectors.toMap(Player::id, player -> player.displayName().value(), (a, b) -> a));
+                .collect(Collectors.toMap(Player::id, Function.identity(), (a, b) -> a));
     }
 }

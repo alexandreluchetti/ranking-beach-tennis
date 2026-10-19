@@ -68,7 +68,8 @@ public class MatchController {
                                                   @Valid @RequestBody RegisterMatchRequest request) {
         Score score = new Score(request.format(), request.teamAGames(), request.teamBGames(),
                 request.tiebreakTeamAPoints(), request.tiebreakTeamBPoints());
-        RegisterMatch.Command command = new RegisterMatch.Command(request.id(), request.playedAt().toInstant(), score,
+        RegisterMatch.Command command = new RegisterMatch.Command(request.id(),
+                request.playedAt() == null ? null : request.playedAt().toInstant(), score,
                 MatchRequestMapper.participants(request.teamA(), request.teamB()), request.duplicateConfirmed());
         AuthenticatedUser user = currentUserProvider.get();
         RegisterMatch.Result result = registerMatch.execute(user, leagueScope.resolve(leagueId, user), command);

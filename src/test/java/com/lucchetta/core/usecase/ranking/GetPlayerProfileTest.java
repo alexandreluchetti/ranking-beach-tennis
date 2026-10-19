@@ -30,7 +30,7 @@ class GetPlayerProfileTest {
         world.match(LocalDate.of(2026, 10, 4), 4, 6);   // active season: Ana +4 (loss)
         world.match(LocalDate.of(2026, 5, 10), 6, 3);   // outside any season: stats only
         world.match(LocalDate.of(2026, 10, 11), 6, 2, MatchStatus.VALID, world.anaAndGuestVsCaioAndDani()); // guest:
-        // inside the active season, but counts only for the career
+        // counts like any match (D-004): Ana +9, Caio and Dani +2
         world.match(LocalDate.of(2026, 10, 10), 6, 1, MatchStatus.VOIDED,
                 world.match(LocalDate.of(2026, 3, 1), 6, 4).participants()); // voided; the 6-4 is outside seasons
 
@@ -38,8 +38,8 @@ class GetPlayerProfileTest {
 
         assertThat(profile.player()).isEqualTo(world.ana);
         assertThat(profile.currentSeason().season().season()).isEqualTo(world.activeSeason);
-        assertThat(profile.currentSeason().stats()).isEqualTo(new PlayerStats(1, 0, 1, 4, 6, 4));
-        assertThat(profile.currentSeason().position()).isEqualTo(3);
+        assertThat(profile.currentSeason().stats()).isEqualTo(new PlayerStats(2, 1, 1, 10, 8, 13));
+        assertThat(profile.currentSeason().position()).isEqualTo(1);
         assertThat(profile.currentSeason().rankedPlayers()).isEqualTo(4);
 
         assertThat(profile.pastSeasons()).singleElement().satisfies(standing -> {
@@ -48,8 +48,8 @@ class GetPlayerProfileTest {
             assertThat(standing.stats().points()).isEqualTo(9);
         });
 
-        // Career: 6-0, 4-6, 6-3, 6-2 (guest) and 6-4; the voided match is excluded. Points: 9 + 4.
-        assertThat(profile.career()).isEqualTo(new PlayerStats(5, 4, 1, 28, 15, 13));
+        // Career: 6-0, 4-6, 6-3, 6-2 (guest) and 6-4; the voided match is excluded. Points: 9 + 4 + 9.
+        assertThat(profile.career()).isEqualTo(new PlayerStats(5, 4, 1, 28, 15, 22));
     }
 
     @Test

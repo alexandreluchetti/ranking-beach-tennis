@@ -43,9 +43,9 @@ class SearchMatchesTest {
     @Test
     void filtersByOutcomeKeepingVoidedSeparateFromNotCounted() {
         assertThat(ids(search(null, null, null, null, Set.of(MatchOutcome.COUNTED), 0, 20)))
-                .containsExactly(counted.id(), pastSeason.id());
+                .containsExactly(guest.id(), counted.id(), pastSeason.id()); // guests do not matter (D-004)
         assertThat(ids(search(null, null, null, null, Set.of(MatchOutcome.NOT_COUNTED), 0, 20)))
-                .containsExactly(guest.id(), outsideSeasons.id());
+                .containsExactly(outsideSeasons.id());
         assertThat(ids(search(null, null, null, null, Set.of(MatchOutcome.VOIDED), 0, 20)))
                 .containsExactly(voided.id());
     }
@@ -80,8 +80,9 @@ class SearchMatchesTest {
     void itemsCarryEligibilityAndPoints() {
         MatchDetails details = search(null, null, null, null, Set.of(MatchOutcome.COUNTED), 0, 1).items().getFirst();
 
-        assertThat(details.match().id()).isEqualTo(counted.id());
+        assertThat(details.match().id()).isEqualTo(guest.id());
         assertThat(details.pointsFor(details.match().winner())).isEqualTo(9);
+        assertThat(details.pointsFor(details.match().winner().opponent())).isEqualTo(2);
     }
 
     private SearchMatches.Page search(UUID seasonId, UUID playerId, LocalDate from, LocalDate to,

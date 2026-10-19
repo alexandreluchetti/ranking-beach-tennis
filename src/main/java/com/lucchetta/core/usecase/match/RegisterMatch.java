@@ -37,6 +37,11 @@ import java.util.UUID;
  */
 public class RegisterMatch {
 
+    /**
+     * @param playedAt when the match was registered on the phone (the user picks only the date; the
+     *                 time is the moment of registering), or null to use the moment the server
+     *                 receives it
+     */
     public record Command(
             UUID id,
             Instant playedAt,
@@ -85,7 +90,8 @@ public class RegisterMatch {
         LeagueAccess.requireNotArchived(context.league());
         Player registeredBy = context.player();
         Instant now = clock.instant();
-        Match match = new Match(command.id(), leagueId, command.playedAt(), command.score(), command.participants(),
+        Instant playedAt = command.playedAt() == null ? now : command.playedAt();
+        Match match = new Match(command.id(), leagueId, playedAt, command.score(), command.participants(),
                 MatchStatus.VALID, registeredBy.id(), now, now);
 
         record Outcome(Result result, List<Notification> notifications) {
@@ -93,7 +99,7 @@ public class RegisterMatch {
         Outcome outcome = transactionRunner.inTransaction(() -> {
             Match existing = matchRepository.findById(match.id()).orElse(null);
             if (existing != null) {
-                return new Outcome(idempotentResend(existing, match), List.of());
+                return new Outcome(idempotentResend(existing, match, command.playedAt() == null), List.of());
             }
             validator.validate(match, now);
             if (!command.confirmPossibleDuplicate()) {
@@ -101,8 +107,8 @@ public class RegisterMatch {
             }
             if (!matchRepository.insertIfAbsent(match)) {
                 // Lost a race against a concurrent resend of the same id.
-                return new Outcome(idempotentResend(matchRepository.findById(match.id()).orElseThrow(), match),
-                        List.of());
+                return new Outcome(idempotentResend(matchRepository.findById(match.id()).orElseThrow(), match,
+                        command.playedAt() == null), List.of());
             }
             MatchDetails details = assembler.assemble(match);
             return new Outcome(new Result(details, true), notifier.registered(details));
@@ -111,8 +117,16 @@ public class RegisterMatch {
         return outcome.result();
     }
 
-    private Result idempotentResend(Match existing, Match requested) {
+    /**
+     * @param serverTime the resend carried no time: the server's clock differs on every attempt, so
+     *                   the time is not compared
+     */
+    private Result idempotentResend(Match existing, Match requested, boolean serverTime) {
         boolean changedByAdministrator = existing.version() > 0;
+        if (serverTime) {
+            requested = requested.corrected(existing.playedAt(), requested.score(), requested.participants(),
+                    requested.updatedAt());
+        }
         if (!existing.leagueId().equals(requested.leagueId())
                 || (!changedByAdministrator && !existing.hasSameContentAs(requested))) {
             throw new ConflictException("MATCH_ID_CONFLICT");
