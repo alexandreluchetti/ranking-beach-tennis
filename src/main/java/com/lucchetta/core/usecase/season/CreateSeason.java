@@ -13,8 +13,12 @@ import com.lucchetta.core.port.TransactionRunner;
 import com.lucchetta.core.usecase.league.LeagueAccess;
 
 import java.time.Clock;
+import java.time.DayOfWeek;
 import java.time.Instant;
 import java.time.LocalDate;
+import java.util.EnumSet;
+import java.util.Objects;
+import java.util.Set;
 import java.util.UUID;
 
 /**
@@ -23,7 +27,8 @@ import java.util.UUID;
  */
 public class CreateSeason {
 
-    public record Command(String name, LocalDate startDate, LocalDate endDate) {
+    /** @param playingDays the days of the week whose matches count (D-025); null means every day */
+    public record Command(String name, LocalDate startDate, LocalDate endDate, Set<DayOfWeek> playingDays) {
     }
 
     private final LeagueAccess leagueAccess;
@@ -52,8 +57,9 @@ public class CreateSeason {
         LocalDate today = BusinessCalendar.today(clock);
         Instant now = clock.instant();
         Season season = new Season(
-                UUID.randomUUID(), leagueId, command.name(), command.startDate(), command.endDate(), admin.id(), now,
-                now);
+                UUID.randomUUID(), leagueId, command.name(), command.startDate(), command.endDate(),
+                Objects.requireNonNullElseGet(command.playingDays(), () -> EnumSet.allOf(DayOfWeek.class)), admin.id(),
+                now, now);
         if (season.endDate().isBefore(today)) {
             throw new RuleViolationException("SEASON_END_IN_PAST");
         }

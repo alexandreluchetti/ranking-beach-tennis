@@ -7,14 +7,18 @@ import org.junit.jupiter.api.Test;
 import org.springframework.http.MediaType;
 import org.springframework.test.web.servlet.ResultActions;
 
+import java.time.DayOfWeek;
 import java.time.LocalDate;
 import java.time.OffsetDateTime;
 import java.time.ZoneId;
 import java.time.ZonedDateTime;
+import java.util.Arrays;
 import java.util.UUID;
+import java.util.stream.Collectors;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.patch;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
@@ -138,6 +142,52 @@ class MatchApiIT extends IntegrationTest {
     }
 
     @Test
+    void matchOnADayThatIsNotAPlayingDayIsKeptButGivesNoPoints() throws Exception {
+        DayOfWeek matchDay = playedAt.atZoneSameInstant(BRASILIA).getDayOfWeek();
+        createActiveSeason(Arrays.stream(DayOfWeek.values()).filter(day -> day != matchDay)
+                .map(day -> "\"" + day + "\"").collect(Collectors.joining(", ")));
+
+        register(body(UUID.randomUUID().toString(), 6, 4, player(ana), player(beto), player(caio), player(dani), false))
+                .andExpect(status().isCreated())
+                .andExpect(jsonPath("$.counted").value(false))
+                .andExpect(jsonPath("$.notCountedReason").value("NOT_A_PLAYING_DAY"))
+                .andExpect(jsonPath("$.season.name").value("Primavera"))
+                .andExpect(jsonPath("$.teamA[0].points").value(0));
+        mockMvc.perform(get("/api/seasons/current/ranking").with(userToken()))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.entries[0].points").value(0))
+                .andExpect(jsonPath("$.entries[0].matchesPlayed").value(0));
+    }
+
+    @Test
+    void changingThePlayingDaysDoesNotAffectEarlierDays() throws Exception {
+        createActiveSeason();
+        OffsetDateTime today = playedAt;
+        playedAt = today.minusDays(1);
+        String yesterdays = UUID.randomUUID().toString();
+        register(body(yesterdays, 6, 4, player(ana), player(beto), player(caio), player(dani), false))
+                .andExpect(jsonPath("$.counted").value(true));
+
+        DayOfWeek todayDay = today.atZoneSameInstant(BRASILIA).getDayOfWeek();
+        String seasonId = JsonPath.read(mockMvc.perform(get("/api/seasons/current").with(userToken()))
+                .andReturn().getResponse().getContentAsString(), "$.id");
+        mockMvc.perform(patch("/api/admin/seasons/" + seasonId).with(adminToken())
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"playingDays\": [\"%s\"]}".formatted(todayDay.plus(2))))
+                .andExpect(status().isOk());
+
+        mockMvc.perform(get("/api/matches/" + yesterdays).with(userToken()))
+                .andExpect(jsonPath("$.counted").value(true))
+                .andExpect(jsonPath("$.teamA[0].points").value(9));
+        playedAt = today;
+        register(body(UUID.randomUUID().toString(), 6, 2,
+                player(ana), player(caio), player(beto), player(dani), false))
+                .andExpect(status().isCreated())
+                .andExpect(jsonPath("$.counted").value(false))
+                .andExpect(jsonPath("$.notCountedReason").value("NOT_A_PLAYING_DAY"));
+    }
+
+    @Test
     void validationErrorsAreReportedInPortuguese() throws Exception {
         register(body(UUID.randomUUID().toString(), 6, 5, player(ana), player(beto), player(caio), player(dani), false))
                 .andExpect(status().isBadRequest())
@@ -230,11 +280,17 @@ class MatchApiIT extends IntegrationTest {
     }
 
     private void createActiveSeason() throws Exception {
+        createActiveSeason(null);
+    }
+
+    /** @param playingDays JSON array items, or null to omit them (every day) */
+    private void createActiveSeason(String playingDays) throws Exception {
         LocalDate today = LocalDate.now(BRASILIA);
         mockMvc.perform(post("/api/admin/seasons").with(adminToken())
                         .contentType(MediaType.APPLICATION_JSON)
-                        .content("{\"name\": \"Primavera\", \"startDate\": \"%s\", \"endDate\": \"%s\"}"
-                                .formatted(today.minusDays(30), today.plusDays(30))))
+                        .content("{\"name\": \"Primavera\", \"startDate\": \"%s\", \"endDate\": \"%s\"%s}"
+                                .formatted(today.minusDays(30), today.plusDays(30),
+                                        playingDays == null ? "" : ", \"playingDays\": [" + playingDays + "]")))
                 .andExpect(status().isCreated());
     }
 }

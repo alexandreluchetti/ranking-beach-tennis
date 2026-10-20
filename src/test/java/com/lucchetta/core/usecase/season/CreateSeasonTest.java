@@ -16,7 +16,10 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
+import java.time.DayOfWeek;
 import java.time.LocalDate;
+import java.util.EnumSet;
+import java.util.Set;
 
 import static com.lucchetta.core.usecase.season.SeasonUseCaseFixture.ADMIN;
 import static com.lucchetta.core.usecase.season.SeasonUseCaseFixture.ADMIN_PLAYER;
@@ -111,8 +114,32 @@ class CreateSeasonTest {
         assertThat(seasons.findAll(TestLeague.ID)).hasSize(2);
     }
 
+    @Test
+    void playingDaysAreChosenAtCreation() {
+        SeasonView view = execute(ADMIN, new CreateSeason.Command("Primavera", TODAY, TODAY.plusDays(60),
+                Set.of(DayOfWeek.THURSDAY, DayOfWeek.TUESDAY)));
+
+        assertThat(view.season().playingDays()).containsExactly(DayOfWeek.TUESDAY, DayOfWeek.THURSDAY);
+    }
+
+    @Test
+    void omittedPlayingDaysMeanEveryDay() {
+        SeasonView view = execute(ADMIN, command("Primavera", TODAY, TODAY.plusDays(60)));
+
+        assertThat(view.season().playingDays()).isEqualTo(EnumSet.allOf(DayOfWeek.class));
+    }
+
+    @Test
+    void rejectsSeasonWithoutPlayingDays() {
+        assertThatThrownBy(() -> execute(ADMIN, new CreateSeason.Command("Primavera", TODAY, TODAY.plusDays(60),
+                Set.of())))
+                .isInstanceOf(RuleViolationException.class)
+                .hasMessage("INVALID_SEASON_PLAYING_DAYS");
+        assertThat(seasons.findAll(TestLeague.ID)).isEmpty();
+    }
+
     private static CreateSeason.Command command(String name, LocalDate start, LocalDate end) {
-        return new CreateSeason.Command(name, start, end);
+        return new CreateSeason.Command(name, start, end, null);
     }
 
     private SeasonView execute(AuthenticatedUser user, CreateSeason.Command command) {

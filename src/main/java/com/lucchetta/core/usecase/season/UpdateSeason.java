@@ -14,9 +14,11 @@ import com.lucchetta.core.port.TransactionRunner;
 import com.lucchetta.core.usecase.league.LeagueAccess;
 
 import java.time.Clock;
+import java.time.DayOfWeek;
 import java.time.Instant;
 import java.time.LocalDate;
 import java.util.Objects;
+import java.util.Set;
 import java.util.UUID;
 
 /**
@@ -25,13 +27,15 @@ import java.util.UUID;
  *     <li>Closed seasons cannot be changed or reopened (D-006).</li>
  *     <li>Active seasons keep their start date; the end date may be extended or brought forward,
  *     but not before today.</li>
- *     <li>Planned seasons may change name and both dates.</li>
+ *     <li>Active seasons may change their playing days; the change applies from today on, so
+ *     matches of earlier days keep counting (or not) as they did (D-025).</li>
+ *     <li>Planned seasons may change name, both dates and the playing days.</li>
  * </ul>
  */
 public class UpdateSeason {
 
     /** Null fields are left unchanged. */
-    public record Command(String name, LocalDate startDate, LocalDate endDate) {
+    public record Command(String name, LocalDate startDate, LocalDate endDate, Set<DayOfWeek> playingDays) {
     }
 
     private final LeagueAccess leagueAccess;
@@ -70,6 +74,7 @@ public class UpdateSeason {
             String name = Objects.requireNonNullElse(command.name(), current.name());
             LocalDate start = Objects.requireNonNullElse(command.startDate(), current.startDate());
             LocalDate end = Objects.requireNonNullElse(command.endDate(), current.endDate());
+            Set<DayOfWeek> playingDays = Objects.requireNonNullElse(command.playingDays(), current.playingDays());
             if (status == SeasonStatus.ACTIVE && !start.equals(current.startDate())) {
                 throw new RuleViolationException("SEASON_START_LOCKED");
             }
@@ -77,7 +82,10 @@ public class UpdateSeason {
                 throw new RuleViolationException("SEASON_END_IN_PAST");
             }
 
-            Season updated = current.withChanges(name, start, end, now);
+            // Planned: the new days replace the old ones. Active: they apply from today on (D-025).
+            LocalDate playingDaysFrom = status == SeasonStatus.PLANNED ? start : today;
+            Season updated = current.withChanges(name, start, end, now)
+                    .withPlayingDays(playingDays, playingDaysFrom, now);
             if (sameContent(current, updated)) {
                 return current;
             }
@@ -95,6 +103,8 @@ public class UpdateSeason {
     private static boolean sameContent(Season a, Season b) {
         return a.name().equals(b.name())
                 && a.startDate().equals(b.startDate())
-                && a.endDate().equals(b.endDate());
+                && a.endDate().equals(b.endDate())
+                && a.playingDays().equals(b.playingDays())
+                && a.pastPlayingDays().equals(b.pastPlayingDays());
     }
 }
