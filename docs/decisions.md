@@ -74,8 +74,8 @@ Firebase project ID: `ranking-beach-tennis`.
   days are never silently removed from a season. Closing early means "ends today".
 - A season may be created with a start date in the past (e.g. created a few days after it
   started); matches already played in that period will count.
-- Active season: name and end date may change; start date is locked.
-  Planned season: name and both dates may change. Closed season: no changes.
+- Active season: name, end date and playing days (D-025) may change; start date is locked.
+  Planned season: name, both dates and the playing days may change. Closed season: no changes.
 - Seasons cannot be deleted.
 
 ### D-011 — Match date
@@ -200,6 +200,20 @@ published; then they are removed.
 - Visible only to the user and to the administrators of their leagues (member list); rankings,
   matches and player lists keep showing the display name.
 - Sign-up asks for the password twice and compares both in the app (the backend never sees it).
+
+### D-025 — Playing days of a season
+- When creating a season, the league administrator chooses **one or more days of the week**
+  (playing days). Only matches played on those days (Brasília date, D-006) count for the season's
+  ranking and statistics; a match inside the season period on another day is kept for history
+  but gives no points, like a match outside any season (reason `NOT_A_PLAYING_DAY`). It still
+  counts for career and global statistics (D-022), which include every valid match.
+- Precedence of the reasons a match does not count: voided, no season, not a playing day.
+- Playing days may change while the season is planned (they replace the chosen ones) or active.
+  In an active season the change applies **from that day on** and is never retroactive: matches
+  of earlier days keep counting (or not) under the days in effect on their date, including
+  matches registered or corrected later. A second change on the same day replaces the first.
+- Seasons created before this rule, and requests that omit the days (app published before it),
+  play every day of the week.
 
 ## Technical defaults (easy to change)
 

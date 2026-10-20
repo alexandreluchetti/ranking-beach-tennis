@@ -131,6 +131,62 @@ class SeasonApiIT extends IntegrationTest {
     }
 
     @Test
+    void playingDaysAreChosenAtCreationAndCanChange() throws Exception {
+        String planned = createSeason(
+                json("Verão", TODAY.plusDays(10), TODAY.plusDays(90), "\"SATURDAY\", \"TUESDAY\""));
+
+        mockMvc.perform(get("/api/seasons/" + planned).with(userToken()))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.playingDays.length()").value(2))
+                .andExpect(jsonPath("$.playingDays[0]").value("TUESDAY"))
+                .andExpect(jsonPath("$.playingDays[1]").value("SATURDAY"));
+        mockMvc.perform(patch("/api/admin/seasons/" + planned).with(adminToken())
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"playingDays\": [\"SUNDAY\"]}"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.playingDays[0]").value("SUNDAY"));
+        assertThat(jdbcTemplate.queryForObject("select playing_days::text from season where id = ?", String.class,
+                UUID.fromString(planned))).isEqualTo("{7}");
+        assertThat(jdbcTemplate.queryForObject("""
+                select after::text from season_audit where season_id = ? and action = 'UPDATED'
+                """, String.class, UUID.fromString(planned))).contains("\"playingDays\": [\"SUNDAY\"]");
+
+        String active = createSeason("Primavera", TODAY.minusDays(5), TODAY.plusDays(5));
+        mockMvc.perform(get("/api/seasons/" + active).with(userToken()))
+                .andExpect(jsonPath("$.playingDays.length()").value(7))
+                .andExpect(jsonPath("$.playingDays[0]").value("MONDAY"));
+        mockMvc.perform(patch("/api/admin/seasons/" + active).with(adminToken())
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"playingDays\": [\"MONDAY\"]}"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.playingDays.length()").value(1))
+                .andExpect(jsonPath("$.playingDays[0]").value("MONDAY"));
+        // Active season: the earlier days keep every day of the week (D-025).
+        assertThat(jdbcTemplate.queryForMap(
+                "select last_day, playing_days::text as days from season_past_playing_days where season_id = ?",
+                UUID.fromString(active))).containsEntry("last_day", java.sql.Date.valueOf(TODAY.minusDays(1)))
+                .containsEntry("days", "{1,2,3,4,5,6,7}");
+        assertThat(jdbcTemplate.queryForObject("select count(*) from season_past_playing_days where season_id = ?",
+                Integer.class, UUID.fromString(planned))).isZero();
+    }
+
+    @Test
+    void invalidPlayingDays() throws Exception {
+        mockMvc.perform(post("/api/admin/seasons").with(adminToken())
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(json("Primavera", TODAY, TODAY.plusDays(30), "")))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.code").value("INVALID_SEASON_PLAYING_DAYS"))
+                .andExpect(jsonPath("$.detail").value("Escolha pelo menos um dia da semana para a temporada."));
+        mockMvc.perform(post("/api/admin/seasons").with(adminToken())
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(json("Primavera", TODAY, TODAY.plusDays(30), "\"SEGUNDA\"")))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.code").value("INVALID_REQUEST"));
+        assertThat(jdbcTemplate.queryForObject("select count(*) from season", Integer.class)).isZero();
+    }
+
+    @Test
     void invalidInputAndUnknownSeason() throws Exception {
         mockMvc.perform(post("/api/admin/seasons").with(adminToken())
                         .contentType(MediaType.APPLICATION_JSON)
@@ -143,9 +199,13 @@ class SeasonApiIT extends IntegrationTest {
     }
 
     private String createSeason(String name, LocalDate start, LocalDate end) throws Exception {
+        return createSeason(json(name, start, end));
+    }
+
+    private String createSeason(String json) throws Exception {
         String body = mockMvc.perform(post("/api/admin/seasons").with(adminToken())
                         .contentType(MediaType.APPLICATION_JSON)
-                        .content(json(name, start, end)))
+                        .content(json))
                 .andExpect(status().isCreated())
                 .andReturn().getResponse().getContentAsString();
         return JsonPath.read(body, "$.id");
@@ -153,5 +213,10 @@ class SeasonApiIT extends IntegrationTest {
 
     private static String json(String name, LocalDate start, LocalDate end) {
         return "{\"name\": \"%s\", \"startDate\": \"%s\", \"endDate\": \"%s\"}".formatted(name, start, end);
+    }
+
+    private static String json(String name, LocalDate start, LocalDate end, String playingDays) {
+        return "{\"name\": \"%s\", \"startDate\": \"%s\", \"endDate\": \"%s\", \"playingDays\": [%s]}"
+                .formatted(name, start, end, playingDays);
     }
 }
