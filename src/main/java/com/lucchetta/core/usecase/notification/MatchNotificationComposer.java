@@ -120,6 +120,8 @@ public class MatchNotificationComposer {
     private static String notCounted(NotCountedReason reason) {
         return switch (reason) {
             case NO_SEASON -> "A partida não vale pontos porque não há temporada nessa data.";
+            case NOT_A_PLAYING_DAY ->
+                    "A partida não vale pontos porque esse dia da semana não conta para a temporada.";
             case VOIDED -> "A partida está anulada.";
         };
     }

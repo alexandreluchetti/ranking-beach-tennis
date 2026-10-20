@@ -1,6 +1,7 @@
 package com.lucchetta.core.usecase.season;
 
 import com.lucchetta.core.domain.AuthenticatedUser;
+import com.lucchetta.core.domain.PastPlayingDays;
 import com.lucchetta.core.domain.Season;
 import com.lucchetta.core.domain.SeasonAuditEntry;
 import com.lucchetta.core.domain.SeasonStatus;
@@ -17,7 +18,9 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
+import java.time.DayOfWeek;
 import java.time.LocalDate;
+import java.util.Set;
 import java.util.UUID;
 
 import static com.lucchetta.core.usecase.season.SeasonUseCaseFixture.ADMIN;
@@ -56,7 +59,8 @@ class UpdateSeasonTest {
 
         assertThatThrownBy(() -> execute(ADMIN, closed.id(), endDate(TODAY.plusDays(30))))
                 .hasMessage("SEASON_CLOSED");
-        assertThatThrownBy(() -> execute(ADMIN, closed.id(), new UpdateSeason.Command("Novo nome", null, null)))
+        assertThatThrownBy(() -> execute(ADMIN, closed.id(),
+                new UpdateSeason.Command("Novo nome", null, null, null)))
                 .hasMessage("SEASON_CLOSED");
         assertThat(seasons.audit()).isEmpty();
     }
@@ -102,7 +106,7 @@ class UpdateSeasonTest {
         Season active = storedSeason(seasons, "Primavera", TODAY.minusDays(10), TODAY.plusDays(20));
 
         assertThatThrownBy(() -> execute(ADMIN, active.id(),
-                new UpdateSeason.Command(null, TODAY.minusDays(5), null)))
+                new UpdateSeason.Command(null, TODAY.minusDays(5), null, null)))
                 .hasMessage("SEASON_START_LOCKED");
     }
 
@@ -110,7 +114,7 @@ class UpdateSeasonTest {
     void activeSeasonCanBeRenamed() {
         Season active = storedSeason(seasons, "Primavera", TODAY.minusDays(10), TODAY.plusDays(20));
 
-        SeasonView view = execute(ADMIN, active.id(), new UpdateSeason.Command("Primavera 2026", null, null));
+        SeasonView view = execute(ADMIN, active.id(), new UpdateSeason.Command("Primavera 2026", null, null, null));
 
         assertThat(view.season().name()).isEqualTo("Primavera 2026");
     }
@@ -120,12 +124,47 @@ class UpdateSeasonTest {
         Season planned = storedSeason(seasons, "Verão", TODAY.plusDays(30), TODAY.plusDays(90));
 
         SeasonView view = execute(ADMIN, planned.id(),
-                new UpdateSeason.Command("Verão 2027", TODAY.plusDays(40), TODAY.plusDays(100)));
+                new UpdateSeason.Command("Verão 2027", TODAY.plusDays(40), TODAY.plusDays(100), null));
 
         assertThat(view.season().name()).isEqualTo("Verão 2027");
         assertThat(view.season().startDate()).isEqualTo(TODAY.plusDays(40));
         assertThat(view.season().endDate()).isEqualTo(TODAY.plusDays(100));
         assertThat(view.status()).isEqualTo(SeasonStatus.PLANNED);
+    }
+
+    @Test
+    void plannedSeasonCanChangePlayingDays() {
+        Season planned = storedSeason(seasons, "Verão", TODAY.plusDays(30), TODAY.plusDays(90));
+
+        SeasonView view = execute(ADMIN, planned.id(),
+                new UpdateSeason.Command(null, null, null, Set.of(DayOfWeek.SATURDAY, DayOfWeek.SUNDAY)));
+
+        assertThat(view.season().playingDays()).containsExactly(DayOfWeek.SATURDAY, DayOfWeek.SUNDAY);
+        assertThat(seasons.audit()).singleElement().satisfies(entry -> {
+            assertThat(entry.before().playingDays()).hasSize(7);
+            assertThat(entry.after()).isEqualTo(view.season());
+        });
+    }
+
+    @Test
+    void activeSeasonPlayingDaysChangeFromTodayOn() {
+        Season active = storedSeason(seasons, "Primavera", TODAY.minusDays(10), TODAY.plusDays(20));
+
+        SeasonView view = execute(ADMIN, active.id(),
+                new UpdateSeason.Command(null, null, null, Set.of(DayOfWeek.MONDAY)));
+
+        assertThat(view.season().playingDays()).containsExactly(DayOfWeek.MONDAY);
+        assertThat(view.season().pastPlayingDays())
+                .containsExactly(new PastPlayingDays(TODAY.minusDays(1), active.playingDays()));
+        for (int daysAgo = 1; daysAgo <= 10; daysAgo++) {
+            assertThat(view.season().isPlayingDay(TODAY.minusDays(daysAgo))).isTrue();
+        }
+        for (int daysAhead = 0; daysAhead < 7; daysAhead++) {
+            LocalDate day = TODAY.plusDays(daysAhead);
+            assertThat(view.season().isPlayingDay(day)).isEqualTo(day.getDayOfWeek() == DayOfWeek.MONDAY);
+        }
+        assertThat(seasons.audit()).singleElement()
+                .satisfies(entry -> assertThat(entry.after()).isEqualTo(view.season()));
     }
 
     @Test
@@ -152,7 +191,7 @@ class UpdateSeasonTest {
         Season active = storedSeason(seasons, "Primavera", TODAY.minusDays(10), TODAY.plusDays(20));
 
         SeasonView view = execute(ADMIN, active.id(),
-                new UpdateSeason.Command(" Primavera ", active.startDate(), active.endDate()));
+                new UpdateSeason.Command(" Primavera ", active.startDate(), active.endDate(), null));
 
         assertThat(view.season()).isEqualTo(active);
         assertThat(seasons.audit()).isEmpty();
@@ -175,7 +214,7 @@ class UpdateSeasonTest {
     }
 
     private static UpdateSeason.Command endDate(LocalDate endDate) {
-        return new UpdateSeason.Command(null, null, endDate);
+        return new UpdateSeason.Command(null, null, endDate, null);
     }
 
     private SeasonView execute(AuthenticatedUser user, UUID seasonId, UpdateSeason.Command command) {

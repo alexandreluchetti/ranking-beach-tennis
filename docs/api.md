@@ -47,7 +47,7 @@ in any league without being a member.
 | Method | Path | Who | Notes |
 |---|---|---|---|
 | GET | `seasons` · `seasons/current` · `seasons/{id}` | member | `current` answers 204 without an active season. |
-| POST · PATCH | `seasons` · `seasons/{id}` | league admin | D-006, D-008, D-010 per league. |
+| POST · PATCH | `seasons` · `seasons/{id}` | league admin | D-006, D-008, D-010 per league. `playingDays` (D-025): `["TUESDAY", "THURSDAY"]`, omitted = every day; in an active season a change applies from today on (earlier days keep the previous days). |
 | GET | `seasons/current/ranking` · `seasons/{id}/ranking` | member | D-013. |
 | POST | `matches` | member | Registered players must be members; others as guests (D-021). |
 | GET | `matches` · `matches/{id}` · `matches/{id}/audit` | member | History with filters. |

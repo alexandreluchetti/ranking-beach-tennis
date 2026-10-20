@@ -5,9 +5,13 @@ import com.lucchetta.core.support.TestLeague;
 import org.junit.jupiter.api.Test;
 
 import java.time.Clock;
+import java.time.DayOfWeek;
 import java.time.Instant;
 import java.time.LocalDate;
 import java.time.ZoneOffset;
+import java.util.EnumSet;
+import java.util.List;
+import java.util.Set;
 import java.util.UUID;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -52,6 +56,76 @@ class SeasonTest {
         assertThatThrownBy(() -> season("X", START, END)).hasMessage("INVALID_SEASON_NAME");
         assertThatThrownBy(() -> season(null, START, END)).hasMessage("INVALID_SEASON_NAME");
         assertThatThrownBy(() -> season("x".repeat(61), START, END)).hasMessage("INVALID_SEASON_NAME");
+    }
+
+    @Test
+    void playingDaysAreRequiredAndDefaultToEveryDay() {
+        Instant now = Instant.parse("2026-09-01T12:00:00Z");
+        UUID id = UUID.randomUUID();
+
+        assertThat(season("Primavera", START, END).playingDays()).isEqualTo(EnumSet.allOf(DayOfWeek.class));
+        assertThatThrownBy(() -> new Season(id, TestLeague.ID, "Primavera", START, END, Set.of(), id, now, now))
+                .isInstanceOf(RuleViolationException.class)
+                .hasMessage("INVALID_SEASON_PLAYING_DAYS");
+        assertThatThrownBy(() -> new Season(id, TestLeague.ID, "Primavera", START, END, null, id, now, now))
+                .hasMessage("INVALID_SEASON_PLAYING_DAYS");
+    }
+
+    @Test
+    void playingDaysAreKeptInWeekOrderAndChecked() {
+        Instant now = Instant.parse("2026-09-01T12:00:00Z");
+        Season season = new Season(UUID.randomUUID(), TestLeague.ID, "Primavera", START, END,
+                Set.of(DayOfWeek.SATURDAY, DayOfWeek.TUESDAY), UUID.randomUUID(), now, now);
+
+        assertThat(List.copyOf(season.playingDays())).containsExactly(DayOfWeek.TUESDAY, DayOfWeek.SATURDAY);
+        assertThat(season.isPlayingDay(LocalDate.of(2026, 10, 6))).isTrue();  // Tuesday
+        assertThat(season.isPlayingDay(LocalDate.of(2026, 10, 7))).isFalse(); // Wednesday
+    }
+
+    @Test
+    void playingDaysChangedDuringTheSeasonApplyFromThatDayOn() {
+        Set<DayOfWeek> everyDay = EnumSet.allOf(DayOfWeek.class);
+        Season season = season("Primavera", START, END); // starts on Thursday, Oct 1
+        LocalDate oct10 = LocalDate.of(2026, 10, 10);
+
+        Season tuesdays = season.withPlayingDays(Set.of(DayOfWeek.TUESDAY), oct10, Instant.now());
+        assertThat(tuesdays.pastPlayingDays()).containsExactly(new PastPlayingDays(oct10.minusDays(1), everyDay));
+        assertThat(tuesdays.isPlayingDay(LocalDate.of(2026, 10, 7))).isTrue();   // Wednesday, before the change
+        assertThat(tuesdays.isPlayingDay(LocalDate.of(2026, 10, 14))).isFalse(); // Wednesday, after it
+        assertThat(tuesdays.isPlayingDay(LocalDate.of(2026, 10, 13))).isTrue();  // Tuesday
+
+        Season thenSaturdays = tuesdays.withPlayingDays(Set.of(DayOfWeek.SATURDAY), LocalDate.of(2026, 10, 20),
+                Instant.now());
+        assertThat(thenSaturdays.pastPlayingDays()).containsExactly(
+                new PastPlayingDays(oct10.minusDays(1), everyDay),
+                new PastPlayingDays(LocalDate.of(2026, 10, 19), Set.of(DayOfWeek.TUESDAY)));
+        assertThat(thenSaturdays.isPlayingDay(LocalDate.of(2026, 10, 13))).isTrue();  // Tuesday, middle period
+        assertThat(thenSaturdays.isPlayingDay(LocalDate.of(2026, 10, 27))).isFalse(); // Tuesday, after
+    }
+
+    @Test
+    void secondChangeOnTheSameDayReplacesTheFirst() {
+        Season season = season("Primavera", START, END);
+        LocalDate oct10 = LocalDate.of(2026, 10, 10);
+
+        Season changedTwice = season.withPlayingDays(Set.of(DayOfWeek.TUESDAY), oct10, Instant.now())
+                .withPlayingDays(Set.of(DayOfWeek.FRIDAY), oct10, Instant.now());
+        Season undone = season.withPlayingDays(Set.of(DayOfWeek.TUESDAY), oct10, Instant.now())
+                .withPlayingDays(EnumSet.allOf(DayOfWeek.class), oct10, Instant.now());
+
+        assertThat(changedTwice.playingDays()).containsExactly(DayOfWeek.FRIDAY);
+        assertThat(changedTwice.pastPlayingDays()).hasSize(1);
+        assertThat(undone.pastPlayingDays()).isEmpty();
+    }
+
+    @Test
+    void changeTakingEffectOnTheStartDateReplacesTheDays() {
+        Season season = season("Primavera", START, END);
+
+        Season changed = season.withPlayingDays(Set.of(DayOfWeek.SUNDAY), START, Instant.now());
+
+        assertThat(changed.pastPlayingDays()).isEmpty();
+        assertThat(changed.isPlayingDay(START)).isFalse();
     }
 
     @Test

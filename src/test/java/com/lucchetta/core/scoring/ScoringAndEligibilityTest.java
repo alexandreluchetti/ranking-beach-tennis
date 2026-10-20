@@ -12,9 +12,11 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.CsvSource;
 
+import java.time.DayOfWeek;
 import java.time.Instant;
 import java.time.LocalDate;
 import java.util.List;
+import java.util.Set;
 import java.util.UUID;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -83,6 +85,35 @@ class ScoringAndEligibilityTest {
         assertThat(eligibility.evaluate(voidedWithGuest, null).reason()).isEqualTo(NotCountedReason.VOIDED);
         assertThat(eligibility.evaluate(match(sixFour(), withGuest()), null).reason())
                 .isEqualTo(NotCountedReason.NO_SEASON);
+    }
+
+    @Test
+    void matchOnADayThatIsNotAPlayingDayDoesNotCount() {
+        // PLAYED is a Sunday in Brasília; 02:00 UTC on Monday Oct 12 is still Sunday 23:00 in Brasília.
+        Season tuesdaysAndSundays = seasonPlaying(DayOfWeek.TUESDAY, DayOfWeek.SUNDAY);
+        Season tuesdaysOnly = seasonPlaying(DayOfWeek.TUESDAY);
+        Match lateSunday = new Match(UUID.randomUUID(), TestLeague.ID, Instant.parse("2026-10-12T02:00:00Z"),
+                sixFour(), registeredOnly(), MatchStatus.VALID, UUID.randomUUID(), PLAYED, PLAYED);
+
+        assertThat(eligibility.evaluate(match(sixFour(), registeredOnly()), tuesdaysAndSundays))
+                .isEqualTo(RankingEligibility.COUNTED);
+        assertThat(eligibility.evaluate(lateSunday, tuesdaysAndSundays)).isEqualTo(RankingEligibility.COUNTED);
+        assertThat(eligibility.evaluate(match(sixFour(), registeredOnly()), tuesdaysOnly))
+                .isEqualTo(RankingEligibility.notCounted(NotCountedReason.NOT_A_PLAYING_DAY));
+    }
+
+    @Test
+    void voidedTakesPrecedenceOverNotAPlayingDay() {
+        Match voided = new Match(UUID.randomUUID(), TestLeague.ID, PLAYED, sixFour(), registeredOnly(),
+                MatchStatus.VOIDED, UUID.randomUUID(), PLAYED, PLAYED);
+
+        assertThat(eligibility.evaluate(voided, seasonPlaying(DayOfWeek.MONDAY)).reason())
+                .isEqualTo(NotCountedReason.VOIDED);
+    }
+
+    private static Season seasonPlaying(DayOfWeek... days) {
+        return new Season(UUID.randomUUID(), TestLeague.ID, "Primavera", LocalDate.of(2026, 10, 1),
+                LocalDate.of(2026, 12, 31), Set.of(days), UUID.randomUUID(), PLAYED, PLAYED);
     }
 
     private static Score sixFour() {

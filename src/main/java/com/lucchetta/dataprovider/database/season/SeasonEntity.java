@@ -4,6 +4,8 @@ import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.Id;
 import jakarta.persistence.Table;
+import org.hibernate.annotations.JdbcTypeCode;
+import org.hibernate.type.SqlTypes;
 
 import java.time.Instant;
 import java.time.LocalDate;
@@ -28,6 +30,11 @@ public class SeasonEntity {
     @Column(name = "end_date", nullable = false)
     private LocalDate endDate;
 
+    /** ISO days of the week (1 = Monday), sorted. */
+    @JdbcTypeCode(SqlTypes.ARRAY)
+    @Column(name = "playing_days", nullable = false)
+    private Short[] playingDays;
+
     @Column(name = "created_by", nullable = false)
     private UUID createdBy;
 
@@ -41,21 +48,23 @@ public class SeasonEntity {
     }
 
     public SeasonEntity(UUID id, UUID leagueId, String name, LocalDate startDate, LocalDate endDate,
-                        UUID createdBy, Instant createdAt, Instant updatedAt) {
+                        Short[] playingDays, UUID createdBy, Instant createdAt, Instant updatedAt) {
         this.id = id;
         this.leagueId = leagueId;
         this.name = name;
         this.startDate = startDate;
         this.endDate = endDate;
+        this.playingDays = playingDays;
         this.createdBy = createdBy;
         this.createdAt = createdAt;
         this.updatedAt = updatedAt;
     }
 
-    public void apply(String name, LocalDate startDate, LocalDate endDate, Instant updatedAt) {
+    public void apply(String name, LocalDate startDate, LocalDate endDate, Short[] playingDays, Instant updatedAt) {
         this.name = name;
         this.startDate = startDate;
         this.endDate = endDate;
+        this.playingDays = playingDays;
         this.updatedAt = updatedAt;
     }
 
@@ -77,6 +86,10 @@ public class SeasonEntity {
 
     public LocalDate getEndDate() {
         return endDate;
+    }
+
+    public Short[] getPlayingDays() {
+        return playingDays;
     }
 
     public UUID getCreatedBy() {

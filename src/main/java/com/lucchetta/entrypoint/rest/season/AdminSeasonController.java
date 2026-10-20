@@ -48,15 +48,17 @@ public class AdminSeasonController {
                                  @Valid @RequestBody CreateSeasonRequest request) {
         AuthenticatedUser user = currentUserProvider.get();
         return SeasonResponse.from(createSeason.execute(user, leagueScope.resolve(leagueId, user),
-                new CreateSeason.Command(request.name(), request.startDate(), request.endDate())));
+                new CreateSeason.Command(request.name(), request.startDate(), request.endDate(),
+                        request.playingDays())));
     }
 
     @PatchMapping("/{id}")
     @Operation(summary = "Changes a season that is not closed (league administrator)")
     public SeasonResponse update(@PathVariable(required = false) UUID leagueId, @PathVariable UUID id,
-                                 @RequestBody UpdateSeasonRequest request) {
+                                 @Valid @RequestBody UpdateSeasonRequest request) {
         AuthenticatedUser user = currentUserProvider.get();
         return SeasonResponse.from(updateSeason.execute(user, leagueScope.resolve(leagueId, user), id,
-                new UpdateSeason.Command(request.name(), request.startDate(), request.endDate())));
+                new UpdateSeason.Command(request.name(), request.startDate(), request.endDate(),
+                        request.playingDays())));
     }
 }

@@ -151,7 +151,7 @@ Windows bloqueia o jar e `./mvnw verify` falha no repackage: pare-o ou rode em u
 
 - Regras de negócio aprovadas: [`docs/decisions.md`](../docs/decisions.md)
 - Fórmula de pontos: `GamesPlusWinBonusScoringPolicy` — **único lugar** onde a fórmula existe (D-003).
-- Política de elegibilidade: `RankingEligibilityPolicy` (convidados → D-004).
+- Política de elegibilidade: `RankingEligibilityPolicy` (convidados → D-004; dias da semana da temporada → D-025).
 - Validação de placar: `Score` / `MatchFormat` (D-002).
 - Cálculo de ranking: `RankingCalculator`, ordem de desempate em D-013.
 - Possível duplicata e idempotência do registro: `RegisterMatch` (D-012).

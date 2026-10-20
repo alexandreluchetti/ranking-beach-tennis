@@ -20,6 +20,7 @@ final class ErrorMessages {
             Map.entry("SEASON_OVERLAP", "O período informado se sobrepõe ao de outra temporada."),
             Map.entry("SEASON_CLOSED", "Temporadas encerradas não podem ser alteradas."),
             Map.entry("SEASON_START_LOCKED", "A data de início de uma temporada em andamento não pode ser alterada."),
+            Map.entry("INVALID_SEASON_PLAYING_DAYS", "Escolha pelo menos um dia da semana para a temporada."),
             Map.entry("SEASON_NOT_FOUND", "Temporada não encontrada."),
             Map.entry("INVALID_SCORE", "Placar inválido para o formato escolhido."),
             Map.entry("INVALID_TIEBREAK",
