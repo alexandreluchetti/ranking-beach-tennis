@@ -61,6 +61,12 @@ services:
     ports:
       - "127.0.0.1:${API_PORT:-8080}:8080"
     mem_limit: 768m
+    # One line per API request (RequestTimingFilter): keep at most 3 x 10 MB of logs.
+    logging:
+      driver: json-file
+      options:
+        max-size: 10m
+        max-file: "3"
 
   caddy:
     profiles: [prod]

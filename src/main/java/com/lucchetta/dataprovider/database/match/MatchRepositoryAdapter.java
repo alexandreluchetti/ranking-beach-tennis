@@ -1,5 +1,6 @@
 package com.lucchetta.dataprovider.database.match;
 
+import com.lucchetta.dataprovider.cache.CaffeineLeagueMatchCache;
 import com.lucchetta.core.domain.match.Match;
 import com.lucchetta.core.domain.match.MatchFormat;
 import com.lucchetta.core.domain.match.MatchStatus;
@@ -40,9 +41,11 @@ public class MatchRepositoryAdapter implements MatchRepository {
             """;
 
     private final JdbcClient jdbcClient;
+    private final CaffeineLeagueMatchCache leagueMatchCache;
 
-    public MatchRepositoryAdapter(JdbcClient jdbcClient) {
+    public MatchRepositoryAdapter(JdbcClient jdbcClient, CaffeineLeagueMatchCache leagueMatchCache) {
         this.jdbcClient = jdbcClient;
+        this.leagueMatchCache = leagueMatchCache;
     }
 
     @Override
@@ -122,6 +125,7 @@ public class MatchRepositoryAdapter implements MatchRepository {
             return false;
         }
         insertParticipants(match);
+        leagueMatchCache.evict(match.leagueId());
         return true;
     }
 
@@ -157,6 +161,7 @@ public class MatchRepositoryAdapter implements MatchRepository {
         }
         jdbcClient.sql("delete from match_participant where match_id = :id").param("id", match.id()).update();
         insertParticipants(match);
+        leagueMatchCache.evict(match.leagueId());
         return findById(match.id()).orElseThrow();
     }
 

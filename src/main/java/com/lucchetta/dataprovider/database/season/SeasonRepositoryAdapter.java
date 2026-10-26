@@ -1,5 +1,6 @@
 package com.lucchetta.dataprovider.database.season;
 
+import com.lucchetta.dataprovider.cache.CaffeineLeagueMatchCache;
 import com.lucchetta.core.domain.Season;
 import com.lucchetta.core.exception.ConflictException;
 import com.lucchetta.core.port.SeasonRepository;
@@ -28,10 +29,13 @@ public class SeasonRepositoryAdapter implements SeasonRepository {
 
     private final SeasonJpaRepository jpaRepository;
     private final JdbcClient jdbcClient;
+    private final CaffeineLeagueMatchCache leagueMatchCache;
 
-    public SeasonRepositoryAdapter(SeasonJpaRepository jpaRepository, JdbcClient jdbcClient) {
+    public SeasonRepositoryAdapter(SeasonJpaRepository jpaRepository, JdbcClient jdbcClient,
+                                   CaffeineLeagueMatchCache leagueMatchCache) {
         this.jpaRepository = jpaRepository;
         this.jdbcClient = jdbcClient;
+        this.leagueMatchCache = leagueMatchCache;
     }
 
     @Override
@@ -68,6 +72,7 @@ public class SeasonRepositoryAdapter implements SeasonRepository {
                 season.updatedAt());
         SeasonEntity saved = saveTranslatingOverlap(entity);
         savePastPlayingDays(season);
+        leagueMatchCache.evict(season.leagueId());
         return toDomain(saved);
     }
 
@@ -80,6 +85,7 @@ public class SeasonRepositoryAdapter implements SeasonRepository {
                 season.updatedAt());
         SeasonEntity saved = saveTranslatingOverlap(entity);
         savePastPlayingDays(season);
+        leagueMatchCache.evict(season.leagueId());
         return toDomain(saved);
     }
 

@@ -271,6 +271,13 @@ published; then they are removed.
   carry the league id.
 - Win rate (`Aproveitamento`): wins ÷ matches played × 100, rounded to an integer (7 of 11 →
   64%); empty (not 0%) when there are no matches.
+- Cache: the assembled matches of each league (season, eligibility, points, names) are kept in
+  memory (Caffeine, one API instance) and feed season rankings and player profiles. Writing a
+  match or a season evicts its league, and changing a display name evicts every league, after the
+  transaction commits; entries also expire after 10 minutes. It is only a copy of derived data
+  (D-007). Global statistics, match history, notifications and permissions are not cached.
+- Every API request is logged with its route template, status and duration (no ids), to measure
+  response times before optimizing further.
 
 ## Proposed (awaiting approval)
 
