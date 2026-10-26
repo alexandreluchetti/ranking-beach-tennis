@@ -61,6 +61,10 @@ Regras:
   administrador geral); conteúdo de uma liga é só para membros (D-020). Entrada de membros passa
   sempre por `LeagueAdmission` (limite de 50, cancela pedidos/convites pendentes); mudanças de
   membros travam a linha da liga (`findByIdForUpdate`).
+- Rankings e perfis leem as partidas da liga já montadas por `LeagueMatches`, que usa o cache
+  `LeagueMatchCache` (Caffeine em `dataprovider/cache`). Os adapters que gravam partidas, temporadas
+  e apelidos invalidam o cache depois do commit; uma escrita nova que mude o resultado de
+  `MatchDetailsAssembler` precisa invalidá-lo também. Nos ITs, `cleanDatabase()` o esvazia.
 - Endpoints sem liga (app antigo) respondem nos mesmos controllers com `leagueId` opcional e
   usam a liga "Beach Tennis Arena" (`DefaultLeague`), via `LeagueScope` (D-023).
 

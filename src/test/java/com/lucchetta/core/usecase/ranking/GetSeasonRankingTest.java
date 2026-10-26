@@ -23,8 +23,8 @@ import static org.assertj.core.api.Assertions.tuple;
 class GetSeasonRankingTest {
 
     private final RankingFixture world = new RankingFixture();
-    private final GetSeasonRanking useCase = new GetSeasonRanking(world.access, world.querySeasons, world.matches,
-            world.players, world.league.leagues, world.assembler);
+    private final GetSeasonRanking useCase = new GetSeasonRanking(world.access, world.querySeasons,
+            world.players, world.league.leagues, world.leagueMatches);
     private final AuthenticatedUser caller = RankingFixture.user(world.ana);
 
     @Test
@@ -128,7 +128,7 @@ class GetSeasonRankingTest {
     void noActiveSeasonMeansNoCurrentRanking() {
         GetSeasonRanking withoutSeasons = new GetSeasonRanking(
                 world.access, new QuerySeasons(world.access, new InMemorySeasons(), RankingFixture.CLOCK),
-                world.matches, world.players, world.league.leagues, world.assembler);
+                world.players, world.league.leagues, world.leagueMatches);
 
         assertThat(withoutSeasons.current(caller, TestLeague.ID)).isEmpty();
     }

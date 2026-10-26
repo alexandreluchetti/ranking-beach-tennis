@@ -1,5 +1,6 @@
 package com.lucchetta.dataprovider.database.player;
 
+import com.lucchetta.dataprovider.cache.CaffeineLeagueMatchCache;
 import com.lucchetta.core.domain.AuthIdentity;
 import com.lucchetta.core.domain.DisplayName;
 import com.lucchetta.core.domain.FullName;
@@ -17,9 +18,11 @@ import java.util.UUID;
 public class PlayerRepositoryAdapter implements PlayerRepository {
 
     private final PlayerJpaRepository jpaRepository;
+    private final CaffeineLeagueMatchCache leagueMatchCache;
 
-    public PlayerRepositoryAdapter(PlayerJpaRepository jpaRepository) {
+    public PlayerRepositoryAdapter(PlayerJpaRepository jpaRepository, CaffeineLeagueMatchCache leagueMatchCache) {
         this.jpaRepository = jpaRepository;
+        this.leagueMatchCache = leagueMatchCache;
     }
 
     @Override
@@ -63,6 +66,9 @@ public class PlayerRepositoryAdapter implements PlayerRepository {
     public Player update(Player player) {
         PlayerEntity entity = jpaRepository.findById(player.id())
                 .orElseThrow(() -> new IllegalStateException("Player not found: " + player.id()));
+        if (!entity.getDisplayName().equals(player.displayName().value())) {
+            leagueMatchCache.evictAll(); // names are shown in every league's matches
+        }
         entity.setDisplayName(player.displayName().value());
         entity.setFullName(player.fullName() == null ? null : player.fullName().value());
         entity.setUpdatedAt(player.updatedAt());

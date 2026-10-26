@@ -6,14 +6,13 @@ import com.lucchetta.core.domain.SeasonStatus;
 import com.lucchetta.core.domain.league.LeagueMember;
 import com.lucchetta.core.exception.NotFoundException;
 import com.lucchetta.core.port.LeagueMemberRepository;
-import com.lucchetta.core.port.MatchRepository;
 import com.lucchetta.core.port.PlayerRepository;
 import com.lucchetta.core.stats.PlayerStats;
 import com.lucchetta.core.stats.RankingEntry;
 import com.lucchetta.core.stats.StatisticsCalculator;
 import com.lucchetta.core.usecase.league.LeagueAccess;
+import com.lucchetta.core.usecase.match.LeagueMatches;
 import com.lucchetta.core.usecase.match.MatchDetails;
-import com.lucchetta.core.usecase.match.MatchDetailsAssembler;
 import com.lucchetta.core.usecase.season.QuerySeasons;
 import com.lucchetta.core.usecase.season.SeasonView;
 
@@ -42,28 +41,25 @@ public class GetPlayerProfile {
     private final LeagueAccess leagueAccess;
     private final PlayerRepository playerRepository;
     private final LeagueMemberRepository memberRepository;
-    private final MatchRepository matchRepository;
     private final QuerySeasons querySeasons;
-    private final MatchDetailsAssembler assembler;
+    private final LeagueMatches leagueMatches;
 
     public GetPlayerProfile(LeagueAccess leagueAccess,
                             PlayerRepository playerRepository,
                             LeagueMemberRepository memberRepository,
-                            MatchRepository matchRepository,
                             QuerySeasons querySeasons,
-                            MatchDetailsAssembler assembler) {
+                            LeagueMatches leagueMatches) {
         this.leagueAccess = leagueAccess;
         this.playerRepository = playerRepository;
         this.memberRepository = memberRepository;
-        this.matchRepository = matchRepository;
         this.querySeasons = querySeasons;
-        this.assembler = assembler;
+        this.leagueMatches = leagueMatches;
     }
 
     public PlayerProfile execute(AuthenticatedUser user, UUID leagueId, UUID playerId) {
         leagueAccess.requireMember(user, leagueId);
         // Every match of the league is needed: rankings depend on the other players' results too.
-        List<MatchDetails> matches = assembler.assembleAll(matchRepository.findPlayed(leagueId, null, null, null));
+        List<MatchDetails> matches = leagueMatches.all(leagueId);
         List<LeagueMember> members = memberRepository.findByLeague(leagueId);
         List<Player> players = SeasonRankingBuilder.playersOf(playerRepository, members, matches);
         Player player = players.stream().filter(p -> p.id().equals(playerId)).findFirst()

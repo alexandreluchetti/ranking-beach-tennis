@@ -13,7 +13,7 @@
 
     <groupId>com.lucchetta</groupId>
     <artifactId>ranking-beach-tennis</artifactId>
-    <version>1.2.1</version>
+    <version>1.2.2</version>
     <name>ranking-beach-tennis</name>
     <description>Beach tennis individual ranking API</description>
 
@@ -61,6 +61,11 @@
             <groupId>org.springdoc</groupId>
             <artifactId>springdoc-openapi-starter-webmvc-ui</artifactId>
             <version>${springdoc.version}</version>
+        </dependency>
+        <!-- In-memory cache of the assembled matches of each league (version managed by Spring Boot). -->
+        <dependency>
+            <groupId>com.github.ben-manes.caffeine</groupId>
+            <artifactId>caffeine</artifactId>
         </dependency>
         <!-- OAuth2 access tokens for the FCM HTTP v1 API (push notifications). -->
         <dependency>
