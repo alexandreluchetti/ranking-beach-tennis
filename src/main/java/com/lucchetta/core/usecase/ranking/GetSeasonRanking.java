@@ -1,20 +1,17 @@
 package com.lucchetta.core.usecase.ranking;
 
 import com.lucchetta.core.domain.AuthenticatedUser;
-import com.lucchetta.core.domain.BusinessCalendar;
 import com.lucchetta.core.domain.Season;
 import com.lucchetta.core.domain.league.LeagueMember;
 import com.lucchetta.core.port.LeagueMemberRepository;
-import com.lucchetta.core.port.MatchRepository;
 import com.lucchetta.core.port.PlayerRepository;
 import com.lucchetta.core.stats.RankingEntry;
 import com.lucchetta.core.usecase.league.LeagueAccess;
+import com.lucchetta.core.usecase.match.LeagueMatches;
 import com.lucchetta.core.usecase.match.MatchDetails;
-import com.lucchetta.core.usecase.match.MatchDetailsAssembler;
 import com.lucchetta.core.usecase.season.QuerySeasons;
 import com.lucchetta.core.usecase.season.SeasonView;
 
-import java.time.Instant;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
@@ -30,23 +27,20 @@ public class GetSeasonRanking {
 
     private final LeagueAccess leagueAccess;
     private final QuerySeasons querySeasons;
-    private final MatchRepository matchRepository;
     private final PlayerRepository playerRepository;
     private final LeagueMemberRepository memberRepository;
-    private final MatchDetailsAssembler assembler;
+    private final LeagueMatches leagueMatches;
 
     public GetSeasonRanking(LeagueAccess leagueAccess,
                             QuerySeasons querySeasons,
-                            MatchRepository matchRepository,
                             PlayerRepository playerRepository,
                             LeagueMemberRepository memberRepository,
-                            MatchDetailsAssembler assembler) {
+                            LeagueMatches leagueMatches) {
         this.leagueAccess = leagueAccess;
         this.querySeasons = querySeasons;
-        this.matchRepository = matchRepository;
         this.playerRepository = playerRepository;
         this.memberRepository = memberRepository;
-        this.assembler = assembler;
+        this.leagueMatches = leagueMatches;
     }
 
     public SeasonRanking bySeasonId(AuthenticatedUser user, UUID leagueId, UUID seasonId) {
@@ -62,10 +56,8 @@ public class GetSeasonRanking {
 
     private SeasonRanking rankingOf(SeasonView view) {
         Season season = view.season();
-        Instant from = season.startDate().atStartOfDay(BusinessCalendar.ZONE).toInstant();
-        Instant to = season.endDate().plusDays(1).atStartOfDay(BusinessCalendar.ZONE).toInstant();
-        List<MatchDetails> matches = assembler.assembleAll(
-                matchRepository.findValidPlayedBetween(season.leagueId(), from, to));
+        // All the league's matches: the builder keeps the season's matches that count.
+        List<MatchDetails> matches = leagueMatches.all(season.leagueId());
         List<LeagueMember> members = memberRepository.findByLeague(season.leagueId());
         return new SeasonRanking(view, SeasonRankingBuilder.build(season, matches, members,
                 SeasonRankingBuilder.playersOf(playerRepository, members, matches)));

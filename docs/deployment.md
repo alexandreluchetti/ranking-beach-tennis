@@ -176,6 +176,14 @@ before any of these.
 ## Operations
 
 - Logs: `docker compose --profile prod logs -f backend` (also `caddy`, `db-backup`).
+- Response times: every API request is logged as `GET /api/leagues/{leagueId}/seasons/current/ranking 200 12 ms`
+  (route template, no ids). Average time and count per route over the last day, slowest last:
+
+  ```bash
+  docker compose --profile prod logs --since 24h backend | awk '/ ms$/ {r=$(NF-4)" "$(NF-3); s[r]+=$(NF-1); n[r]++} END {for (r in s) printf "%6.0f ms %6d  %s\n", s[r]/n[r], n[r], r}' | sort -n
+  ```
+
+  Backend logs are rotated by Docker (3 files of 10 MB).
 - Health: `https://$DOMAIN/actuator/health` (status only, no details).
 - Version: `https://$DOMAIN/actuator/info` (public, `{"build":{"version":"X.Y.Z","time":"..."}}` only).
 - Database shell: `docker compose exec postgres psql -U ranking -d ranking`.

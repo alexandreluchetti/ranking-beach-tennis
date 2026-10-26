@@ -12,6 +12,7 @@ import java.time.ZonedDateTime;
 import java.util.UUID;
 
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.patch;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
@@ -37,6 +38,39 @@ class RankingApiIT extends IntegrationTest {
     void noActiveSeasonMeansNoCurrentRanking() throws Exception {
         mockMvc.perform(get("/api/seasons/current/ranking").with(userToken()))
                 .andExpect(status().isNoContent());
+    }
+
+    @Test
+    void cachedRankingIsRefreshedAfterEveryChange() throws Exception {
+        String seasonId = createActiveSeason();
+        currentRanking().andExpect(jsonPath("$.entries[0].points").value(0)); // caches the league's matches
+
+        register(ana, beto, caio, dani, 6, 4, 90);
+        currentRanking().andExpect(jsonPath("$.entries[0].displayName").value("Ana"))
+                .andExpect(jsonPath("$.entries[0].points").value(9));
+
+        mockMvc.perform(patch("/api/me").with(token("uid-ana", "Ana", null))
+                        .contentType(MediaType.APPLICATION_JSON).content("{\"displayName\": \"Aninha\"}"))
+                .andExpect(status().isOk());
+        currentRanking().andExpect(jsonPath("$.entries[0].displayName").value("Aninha"));
+
+        LocalDate today = LocalDate.now(BRASILIA);
+        String noMatchDay = today.minusDays(2).getDayOfWeek().name(); // the match was 90 minutes ago
+        mockMvc.perform(patch("/api/admin/seasons/" + seasonId).with(adminToken())
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"playingDays\": [\"%s\"]}".formatted(noMatchDay)))
+                .andExpect(status().isOk());
+        currentRanking().andExpect(jsonPath("$.entries[0].displayName").value("Aninha")); // from today on only
+
+        String matchId = jdbcTemplate.queryForObject("select id::text from match", String.class);
+        mockMvc.perform(post("/api/admin/matches/" + matchId + "/void").with(adminToken())
+                        .contentType(MediaType.APPLICATION_JSON).content("{\"reason\": \"Jogo de treino\"}"))
+                .andExpect(status().isOk());
+        currentRanking().andExpect(jsonPath("$.entries[0].points").value(0));
+    }
+
+    private org.springframework.test.web.servlet.ResultActions currentRanking() throws Exception {
+        return mockMvc.perform(get("/api/seasons/current/ranking").with(userToken())).andExpect(status().isOk());
     }
 
     @Test

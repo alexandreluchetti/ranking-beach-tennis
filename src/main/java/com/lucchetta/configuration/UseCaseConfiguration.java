@@ -1,6 +1,7 @@
 package com.lucchetta.configuration;
 
 import com.lucchetta.core.port.DeviceTokenRepository;
+import com.lucchetta.core.port.LeagueMatchCache;
 import com.lucchetta.core.port.LeagueMemberRepository;
 import com.lucchetta.core.port.MatchAuditLog;
 import com.lucchetta.core.port.MatchRepository;
@@ -14,6 +15,7 @@ import com.lucchetta.core.scoring.GamesPlusWinBonusScoringPolicy;
 import com.lucchetta.core.scoring.RankingEligibilityPolicy;
 import com.lucchetta.core.scoring.ScoringPolicy;
 import com.lucchetta.core.usecase.league.LeagueAccess;
+import com.lucchetta.core.usecase.match.LeagueMatches;
 import com.lucchetta.core.usecase.match.MatchDetailsAssembler;
 import com.lucchetta.core.usecase.match.MatchValidator;
 import com.lucchetta.core.usecase.match.QueryMatch;
@@ -181,19 +183,24 @@ public class UseCaseConfiguration {
     }
 
     @Bean
+    LeagueMatches leagueMatches(MatchRepository matchRepository, MatchDetailsAssembler matchDetailsAssembler,
+                                LeagueMatchCache leagueMatchCache) {
+        return new LeagueMatches(matchRepository, matchDetailsAssembler, leagueMatchCache);
+    }
+
+    @Bean
     GetSeasonRanking getSeasonRanking(LeagueAccess leagueAccess, QuerySeasons querySeasons,
-                                      MatchRepository matchRepository, PlayerRepository playerRepository,
-                                      LeagueMemberRepository leagueMemberRepository,
-                                      MatchDetailsAssembler matchDetailsAssembler) {
-        return new GetSeasonRanking(leagueAccess, querySeasons, matchRepository, playerRepository,
-                leagueMemberRepository, matchDetailsAssembler);
+                                      PlayerRepository playerRepository,
+                                      LeagueMemberRepository leagueMemberRepository, LeagueMatches leagueMatches) {
+        return new GetSeasonRanking(leagueAccess, querySeasons, playerRepository, leagueMemberRepository,
+                leagueMatches);
     }
 
     @Bean
     GetPlayerProfile getPlayerProfile(LeagueAccess leagueAccess, PlayerRepository playerRepository,
-                                      LeagueMemberRepository leagueMemberRepository, MatchRepository matchRepository,
-                                      QuerySeasons querySeasons, MatchDetailsAssembler matchDetailsAssembler) {
-        return new GetPlayerProfile(leagueAccess, playerRepository, leagueMemberRepository, matchRepository,
-                querySeasons, matchDetailsAssembler);
+                                      LeagueMemberRepository leagueMemberRepository, QuerySeasons querySeasons,
+                                      LeagueMatches leagueMatches) {
+        return new GetPlayerProfile(leagueAccess, playerRepository, leagueMemberRepository, querySeasons,
+                leagueMatches);
     }
 }

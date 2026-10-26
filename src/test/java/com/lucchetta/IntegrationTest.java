@@ -2,6 +2,7 @@ package com.lucchetta;
 
 import com.lucchetta.configuration.security.AdminAwareAuthoritiesConverter;
 import com.lucchetta.core.domain.league.DefaultLeague;
+import com.lucchetta.dataprovider.cache.CaffeineLeagueMatchCache;
 import org.junit.jupiter.api.BeforeEach;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
@@ -40,6 +41,8 @@ public abstract class IntegrationTest {
     protected MockMvc mockMvc;
     @Autowired
     protected JdbcTemplate jdbcTemplate;
+    @Autowired
+    private CaffeineLeagueMatchCache leagueMatchCache;
 
     @BeforeEach
     void cleanDatabase() {
@@ -51,6 +54,7 @@ public abstract class IntegrationTest {
                 insert into league (id, name, visibility, created_at, updated_at)
                 values (?, ?, 'PUBLIC', now(), now())
                 """, DefaultLeague.ID, DefaultLeague.NAME);
+        leagueMatchCache.evictAll(); // the truncate bypasses the adapters that evict it
     }
 
     protected static RequestPostProcessor token(String subject, String name, String email) {
