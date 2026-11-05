@@ -15,6 +15,9 @@ import java.util.UUID;
 /**
  * A match as shown in the app. {@code status} (valid/voided) and {@code counted} (ranking
  * eligibility) are independent; {@code notCountedReason} explains a match that gives no points.
+ *
+ * @param stageId the daily tournament stage whose game this match is (D-027); its score is changed
+ *                through the stage, not with the match correction and void endpoints
  */
 public record MatchResponse(
         UUID id,
@@ -34,7 +37,8 @@ public record MatchResponse(
         UUID registeredBy,
         OffsetDateTime registeredAt,
         VoidSummary voiding,
-        int version) {
+        int version,
+        UUID stageId) {
 
     public record SeasonSummary(UUID id, String name) {
     }
@@ -73,7 +77,8 @@ public record MatchResponse(
                 OffsetDateTime.ofInstant(match.registeredAt(), BusinessCalendar.ZONE),
                 match.voiding() == null ? null : new VoidSummary(match.voiding().reason(), match.voiding().voidedBy(),
                         OffsetDateTime.ofInstant(match.voiding().voidedAt(), BusinessCalendar.ZONE)),
-                match.version());
+                match.version(),
+                match.stageId());
     }
 
     private static List<ParticipantResponse> team(MatchDetails details, Team team) {

@@ -45,9 +45,14 @@ public class InMemoryMatches implements MatchRepository {
         }
         Match saved = new Match(match.id(), match.leagueId(), match.playedAt(), match.score(), match.participants(),
                 match.status(), match.registeredBy(), match.registeredAt(), match.updatedAt(), match.voiding(),
-                match.version() + 1);
+                match.version() + 1, match.stageId());
         matches.put(saved.id(), saved);
         return saved;
+    }
+
+    @Override
+    public List<Match> findByStage(UUID stageId) {
+        return matches.values().stream().filter(m -> stageId.equals(m.stageId())).toList();
     }
 
     /** Test helper: stores a match as-is (any status). */
