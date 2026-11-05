@@ -7,8 +7,10 @@ import com.lucchetta.core.domain.match.MatchStatus;
 /**
  * Decides whether a match counts for the ranking. Kept apart from the scoring formula and from
  * statistics rules. Guests do not matter (D-004): every valid match inside a season counts.
- * Only matches played on one of the season's playing days count (D-025). When several reasons
- * apply, the first in this order is reported: voided, no season, not a playing day.
+ * Only matches played on one of the season's playing days count (D-025). In a daily tournament
+ * season only stage matches count (D-026); stages do not exist yet, so no match counts there. When
+ * several reasons apply, the first in this order is reported: voided, no season, not a playing
+ * day, not a tournament match.
  */
 public class RankingEligibilityPolicy {
 
@@ -24,6 +26,9 @@ public class RankingEligibilityPolicy {
         }
         if (!season.isPlayingDay(match.playedOn())) {
             return RankingEligibility.notCounted(NotCountedReason.NOT_A_PLAYING_DAY);
+        }
+        if (season.dailyTournament()) {
+            return RankingEligibility.notCounted(NotCountedReason.NOT_A_TOURNAMENT_MATCH);
         }
         return RankingEligibility.COUNTED;
     }

@@ -1,7 +1,10 @@
 package com.lucchetta.dataprovider.database.season;
 
+import com.lucchetta.core.domain.RankingType;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
+import jakarta.persistence.EnumType;
+import jakarta.persistence.Enumerated;
 import jakarta.persistence.Id;
 import jakarta.persistence.Table;
 import org.hibernate.annotations.JdbcTypeCode;
@@ -35,6 +38,15 @@ public class SeasonEntity {
     @Column(name = "playing_days", nullable = false)
     private Short[] playingDays;
 
+    @Enumerated(EnumType.STRING)
+    @Column(name = "ranking_type", nullable = false)
+    private RankingType rankingType;
+
+    /** Champion, runner-up, semifinal, quarterfinal, group stage; daily tournaments only. */
+    @JdbcTypeCode(SqlTypes.ARRAY)
+    @Column(name = "placement_points")
+    private Integer[] placementPoints;
+
     @Column(name = "created_by", nullable = false)
     private UUID createdBy;
 
@@ -48,24 +60,38 @@ public class SeasonEntity {
     }
 
     public SeasonEntity(UUID id, UUID leagueId, String name, LocalDate startDate, LocalDate endDate,
-                        Short[] playingDays, UUID createdBy, Instant createdAt, Instant updatedAt) {
+                        Short[] playingDays, RankingType rankingType, Integer[] placementPoints, UUID createdBy,
+                        Instant createdAt, Instant updatedAt) {
         this.id = id;
         this.leagueId = leagueId;
         this.name = name;
         this.startDate = startDate;
         this.endDate = endDate;
         this.playingDays = playingDays;
+        this.rankingType = rankingType;
+        this.placementPoints = placementPoints;
         this.createdBy = createdBy;
         this.createdAt = createdAt;
         this.updatedAt = updatedAt;
     }
 
-    public void apply(String name, LocalDate startDate, LocalDate endDate, Short[] playingDays, Instant updatedAt) {
+    public void apply(String name, LocalDate startDate, LocalDate endDate, Short[] playingDays,
+                      RankingType rankingType, Integer[] placementPoints, Instant updatedAt) {
         this.name = name;
         this.startDate = startDate;
         this.endDate = endDate;
         this.playingDays = playingDays;
+        this.rankingType = rankingType;
+        this.placementPoints = placementPoints;
         this.updatedAt = updatedAt;
+    }
+
+    public RankingType getRankingType() {
+        return rankingType;
+    }
+
+    public Integer[] getPlacementPoints() {
+        return placementPoints;
     }
 
     public UUID getId() {

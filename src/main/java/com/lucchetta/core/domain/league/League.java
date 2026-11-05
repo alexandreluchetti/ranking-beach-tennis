@@ -10,6 +10,7 @@ import java.util.UUID;
  * A league: a space whose members compete in its own ranking (decision D-017). Leagues are never
  * deleted; an archived league is read-only and hidden from search.
  *
+ * @param scoreEntry who records match scores (decision D-029)
  * @param createdBy  the player who created it; null only for the migrated league of a database
  *                   without users
  * @param inviteCode current invite code, or null if none was generated
@@ -19,6 +20,7 @@ public record League(
         String name,
         String description,
         LeagueVisibility visibility,
+        ScoreEntry scoreEntry,
         String inviteCode,
         UUID createdBy,
         Instant createdAt,
@@ -44,38 +46,57 @@ public record League(
         if (visibility == null) {
             throw new RuleViolationException("INVALID_LEAGUE_VISIBILITY");
         }
+        if (scoreEntry == null) {
+            throw new RuleViolationException("INVALID_LEAGUE_SCORE_ENTRY");
+        }
         if ((archivedAt == null) != (archivedBy == null)) {
             throw new IllegalArgumentException("archivedAt and archivedBy go together");
         }
     }
 
-    public static League create(String name, String description, LeagueVisibility visibility, UUID createdBy,
-                                Instant now) {
-        return new League(UUID.randomUUID(), name, description, visibility, null, createdBy, now, now, null, null, 0);
+    /** A league where any member records scores, the setting of every league created before D-029. */
+    public League(UUID id, String name, String description, LeagueVisibility visibility, String inviteCode,
+                  UUID createdBy, Instant createdAt, Instant updatedAt, Instant archivedAt, UUID archivedBy,
+                  int version) {
+        this(id, name, description, visibility, ScoreEntry.MEMBERS, inviteCode, createdBy, createdAt, updatedAt,
+                archivedAt, archivedBy, version);
+    }
+
+    public static League create(String name, String description, LeagueVisibility visibility, ScoreEntry scoreEntry,
+                                UUID createdBy, Instant now) {
+        return new League(UUID.randomUUID(), name, description, visibility, scoreEntry, null, createdBy, now, now,
+                null, null, 0);
     }
 
     public boolean archived() {
         return archivedAt != null;
     }
 
-    public League withDetails(String newName, String newDescription, LeagueVisibility newVisibility, Instant now) {
-        return new League(id, newName, newDescription, newVisibility, inviteCode, createdBy, createdAt, now,
-                archivedAt, archivedBy, version);
+    /** Whether this member may record match scores (D-029); corrections stay with administrators. */
+    public boolean allowsScoreEntryBy(boolean administrator) {
+        return administrator || scoreEntry == ScoreEntry.MEMBERS;
+    }
+
+    public League withDetails(String newName, String newDescription, LeagueVisibility newVisibility,
+                              ScoreEntry newScoreEntry, Instant now) {
+        return new League(id, newName, newDescription, newVisibility, newScoreEntry, inviteCode, createdBy, createdAt,
+                now, archivedAt, archivedBy, version);
     }
 
     /** A new invite code invalidates the previous one (decision D-019). */
     public League withInviteCode(String code, Instant now) {
-        return new League(id, name, description, visibility, code, createdBy, createdAt, now, archivedAt, archivedBy,
-                version);
+        return new League(id, name, description, visibility, scoreEntry, code, createdBy, createdAt, now, archivedAt,
+                archivedBy, version);
     }
 
     public League archive(UUID by, Instant now) {
-        return new League(id, name, description, visibility, inviteCode, createdBy, createdAt, now, now, by, version);
+        return new League(id, name, description, visibility, scoreEntry, inviteCode, createdBy, createdAt, now, now,
+                by, version);
     }
 
     public League unarchive(Instant now) {
-        return new League(id, name, description, visibility, inviteCode, createdBy, createdAt, now, null, null,
-                version);
+        return new League(id, name, description, visibility, scoreEntry, inviteCode, createdBy, createdAt, now, null,
+                null, version);
     }
 
     private static String normalizeName(String value) {

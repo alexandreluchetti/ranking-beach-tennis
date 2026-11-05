@@ -24,11 +24,11 @@ in any league without being a member.
 
 | Method | Path | Who | Notes |
 |---|---|---|---|
-| POST | `/api/leagues` | any user | Creator becomes league administrator; 5 active leagues per creator. |
+| POST | `/api/leagues` | any user | Creator becomes league administrator; 5 active leagues per creator. `scoreEntry` (D-029): `MEMBERS` (default) or `ADMINS`. |
 | GET | `/api/leagues/mine` | any user | Own leagues, archived included. |
 | GET | `/api/leagues?query=&page=&size=` | any user | Search by name; `archived=true` for the system administrator. |
-| GET | `/api/leagues/{id}` | any user | Summary: name, description, visibility, `memberCount`/`memberLimit`, `myRole`, `canAdminister`, `joinRequestPending`. |
-| PATCH | `/api/leagues/{id}` | league admin | Name, description, visibility. |
+| GET | `/api/leagues/{id}` | any user | Summary: name, description, visibility, `memberCount`/`memberLimit`, `myRole`, `canAdminister`, `canEnterScores`, `joinRequestPending`; `scoreEntry` for members only. |
+| PATCH | `/api/leagues/{id}` | league admin | Name, description, visibility, `scoreEntry`. |
 | POST | `/api/leagues/{id}/archive` · `/unarchive` | league admin · system admin | Archived leagues are read-only. |
 | POST | `/api/leagues/{id}/join` | any user | Public leagues only. |
 | POST | `/api/leagues/{id}/leave` | member | The last administrator cannot leave. |
@@ -47,9 +47,9 @@ in any league without being a member.
 | Method | Path | Who | Notes |
 |---|---|---|---|
 | GET | `seasons` · `seasons/current` · `seasons/{id}` | member | `current` answers 204 without an active season. |
-| POST · PATCH | `seasons` · `seasons/{id}` | league admin | D-006, D-008, D-010 per league. `playingDays` (D-025): `["TUESDAY", "THURSDAY"]`, omitted = every day; in an active season a change applies from today on (earlier days keep the previous days). |
+| POST · PATCH | `seasons` · `seasons/{id}` | league admin | D-006, D-008, D-010 per league. `playingDays` (D-025): `["TUESDAY", "THURSDAY"]`, omitted = every day; in an active season a change applies from today on (earlier days keep the previous days). `rankingType` (D-026): `MATCH_POINTS` (default) or `DAILY_TOURNAMENT`, with `placementPoints` `{champion, runnerUp, semifinal, quarterfinal, groupStage}` (default 100/70/50/35/20); both locked once the season starts. |
 | GET | `seasons/current/ranking` · `seasons/{id}/ranking` | member | D-013. |
-| POST | `matches` | member | Registered players must be members; others as guests (D-021). |
+| POST | `matches` | member | Registered players must be members; others as guests (D-021). League administrators only when `scoreEntry` is `ADMINS` (403 `SCORE_ENTRY_ADMINS_ONLY`, D-029). In a daily tournament season the match gives no season points (`NOT_A_TOURNAMENT_MATCH`). |
 | GET | `matches` · `matches/{id}` · `matches/{id}/audit` | member | History with filters. |
 | PUT · POST | `matches/{id}` · `matches/{id}/void` · `matches/{id}/revert-void` | league admin | Corrections and voids, audited. |
 | GET | `players` · `players/{id}/profile` | member | Members only; profile over the league's matches. |

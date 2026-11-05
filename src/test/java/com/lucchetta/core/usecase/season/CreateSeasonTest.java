@@ -1,6 +1,8 @@
 package com.lucchetta.core.usecase.season;
 
 import com.lucchetta.core.domain.AuthenticatedUser;
+import com.lucchetta.core.domain.PlacementPoints;
+import com.lucchetta.core.domain.RankingType;
 import com.lucchetta.core.domain.SeasonAuditEntry;
 import com.lucchetta.core.domain.SeasonStatus;
 import com.lucchetta.core.exception.ConflictException;
@@ -135,6 +137,41 @@ class CreateSeasonTest {
                 Set.of())))
                 .isInstanceOf(RuleViolationException.class)
                 .hasMessage("INVALID_SEASON_PLAYING_DAYS");
+        assertThat(seasons.findAll(TestLeague.ID)).isEmpty();
+    }
+
+    @Test
+    void omittedRankingTypeMeansPointsPerMatch() {
+        SeasonView view = execute(ADMIN, command("Primavera", TODAY, TODAY.plusDays(60)));
+
+        assertThat(view.season().rankingType()).isEqualTo(RankingType.MATCH_POINTS);
+        assertThat(view.season().placementPoints()).isNull();
+    }
+
+    @Test
+    void dailyTournamentWithoutTableGetsTheDefaultOne() {
+        SeasonView view = execute(ADMIN, new CreateSeason.Command("Primavera", TODAY, TODAY.plusDays(60), null,
+                RankingType.DAILY_TOURNAMENT, null));
+
+        assertThat(view.season().rankingType()).isEqualTo(RankingType.DAILY_TOURNAMENT);
+        assertThat(view.season().placementPoints()).isEqualTo(new PlacementPoints(100, 70, 50, 35, 20));
+    }
+
+    @Test
+    void dailyTournamentKeepsTheChosenTable() {
+        PlacementPoints table = new PlacementPoints(50, 30, 20, 10, 5);
+
+        SeasonView view = execute(ADMIN, new CreateSeason.Command("Primavera", TODAY, TODAY.plusDays(60), null,
+                RankingType.DAILY_TOURNAMENT, table));
+
+        assertThat(view.season().placementPoints()).isEqualTo(table);
+    }
+
+    @Test
+    void placementPointsAreRejectedForPointsPerMatch() {
+        assertThatThrownBy(() -> execute(ADMIN, new CreateSeason.Command("Primavera", TODAY, TODAY.plusDays(60),
+                null, RankingType.MATCH_POINTS, PlacementPoints.DEFAULT)))
+                .hasMessage("PLACEMENT_POINTS_NOT_APPLICABLE");
         assertThat(seasons.findAll(TestLeague.ID)).isEmpty();
     }
 

@@ -122,6 +122,8 @@ public class MatchNotificationComposer {
             case NO_SEASON -> "A partida não vale pontos porque não há temporada nessa data.";
             case NOT_A_PLAYING_DAY ->
                     "A partida não vale pontos porque esse dia da semana não conta para a temporada.";
+            case NOT_A_TOURNAMENT_MATCH ->
+                    "A partida não vale pontos porque, nesta temporada, os pontos vêm das etapas do torneio do dia.";
             case VOIDED -> "A partida está anulada.";
         };
     }

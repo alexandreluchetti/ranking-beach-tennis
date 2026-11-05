@@ -2,7 +2,9 @@ package com.lucchetta.core.usecase.season;
 
 import com.lucchetta.core.domain.AuthenticatedUser;
 import com.lucchetta.core.domain.BusinessCalendar;
+import com.lucchetta.core.domain.PlacementPoints;
 import com.lucchetta.core.domain.Player;
+import com.lucchetta.core.domain.RankingType;
 import com.lucchetta.core.domain.Season;
 import com.lucchetta.core.domain.SeasonAuditEntry;
 import com.lucchetta.core.domain.SeasonStatus;
@@ -29,13 +31,22 @@ import java.util.UUID;
  *     but not before today.</li>
  *     <li>Active seasons may change their playing days; the change applies from today on, so
  *     matches of earlier days keep counting (or not) as they did (D-025).</li>
- *     <li>Planned seasons may change name, both dates and the playing days.</li>
+ *     <li>Planned seasons may change name, both dates, the playing days and the ranking type with
+ *     its placement points; the ranking is locked once the season starts (D-026).</li>
  * </ul>
  */
 public class UpdateSeason {
 
-    /** Null fields are left unchanged. */
-    public record Command(String name, LocalDate startDate, LocalDate endDate, Set<DayOfWeek> playingDays) {
+    /**
+     * Null fields are left unchanged. Changing to a daily tournament without a table keeps the
+     * current table, or takes the default one (D-028).
+     */
+    public record Command(String name, LocalDate startDate, LocalDate endDate, Set<DayOfWeek> playingDays,
+                          RankingType rankingType, PlacementPoints placementPoints) {
+
+        public Command(String name, LocalDate startDate, LocalDate endDate, Set<DayOfWeek> playingDays) {
+            this(name, startDate, endDate, playingDays, null, null);
+        }
     }
 
     private final LeagueAccess leagueAccess;
@@ -81,11 +92,21 @@ public class UpdateSeason {
             if (end.isBefore(today)) {
                 throw new RuleViolationException("SEASON_END_IN_PAST");
             }
+            RankingType rankingType = Objects.requireNonNullElse(command.rankingType(), current.rankingType());
+            PlacementPoints placementPoints = CreateSeason.placementPoints(rankingType,
+                    command.placementPoints() == null && rankingType == current.rankingType()
+                            ? current.placementPoints()
+                            : command.placementPoints());
+            if (status != SeasonStatus.PLANNED && (rankingType != current.rankingType()
+                    || !Objects.equals(placementPoints, current.placementPoints()))) {
+                throw new RuleViolationException("SEASON_RANKING_LOCKED");
+            }
 
             // Planned: the new days replace the old ones. Active: they apply from today on (D-025).
             LocalDate playingDaysFrom = status == SeasonStatus.PLANNED ? start : today;
             Season updated = current.withChanges(name, start, end, now)
-                    .withPlayingDays(playingDays, playingDaysFrom, now);
+                    .withPlayingDays(playingDays, playingDaysFrom, now)
+                    .withRanking(rankingType, placementPoints, now);
             if (sameContent(current, updated)) {
                 return current;
             }
@@ -105,6 +126,8 @@ public class UpdateSeason {
                 && a.startDate().equals(b.startDate())
                 && a.endDate().equals(b.endDate())
                 && a.playingDays().equals(b.playingDays())
-                && a.pastPlayingDays().equals(b.pastPlayingDays());
+                && a.pastPlayingDays().equals(b.pastPlayingDays())
+                && a.rankingType() == b.rankingType()
+                && Objects.equals(a.placementPoints(), b.placementPoints());
     }
 }

@@ -7,6 +7,7 @@ import com.lucchetta.core.domain.league.League;
 import com.lucchetta.core.domain.league.LeagueMember;
 import com.lucchetta.core.domain.league.LeagueRole;
 import com.lucchetta.core.domain.league.LeagueVisibility;
+import com.lucchetta.core.domain.league.ScoreEntry;
 import com.lucchetta.core.domain.match.MatchFormat;
 import com.lucchetta.core.domain.match.MatchStatus;
 import com.lucchetta.core.domain.match.Participant;
@@ -327,6 +328,30 @@ class RegisterMatchTest {
                 Participant.player(Team.A, 1, ana.id()), Participant.guest(Team.A, 2, null),
                 Participant.guest(Team.B, 1, null), Participant.guest(Team.B, 2, null)))))
                 .hasMessage("MATCH_ID_CONFLICT");
+    }
+
+    @Test
+    void onlyAdministratorsRecordScoresWhenTheLeagueSaysSo() {
+        Player eva = players.add("Eva");
+        league.administrator(eva);
+        UUID registeredBefore = UUID.randomUUID();
+        register(caller, command(registeredBefore, sixFour(), regularTeams()));
+        scoreEntry(ScoreEntry.ADMINS);
+
+        assertThatThrownBy(() -> register(caller, command(UUID.randomUUID(), sixFour(), regularTeams())))
+                .isInstanceOf(ForbiddenException.class)
+                .hasMessage("SCORE_ENTRY_ADMINS_ONLY");
+        assertThat(register(caller, command(registeredBefore, sixFour(), regularTeams())).created()).isFalse();
+        AuthenticatedUser admin = new AuthenticatedUser(eva.identity(), null, "Eva", false);
+        assertThat(register(admin, new RegisterMatch.Command(UUID.randomUUID(), PLAYED, sixFour(), regularTeams(),
+                true)).created()).isTrue();
+        assertThat(matches.count()).isEqualTo(2);
+    }
+
+    private void scoreEntry(ScoreEntry scoreEntry) {
+        League current = league.leagues.findById(TestLeague.ID).orElseThrow();
+        league.leagues.update(current.withDetails(current.name(), current.description(), current.visibility(),
+                scoreEntry, NOW));
     }
 
     private RegisterMatch.Result register(AuthenticatedUser user, RegisterMatch.Command command) {
