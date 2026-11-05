@@ -1,5 +1,6 @@
 package com.lucchetta.core.domain;
 
+import com.lucchetta.core.domain.tournament.Placement;
 import com.lucchetta.core.exception.RuleViolationException;
 
 /**
@@ -18,5 +19,15 @@ public record PlacementPoints(int champion, int runnerUp, int semifinal, int qua
                 throw new RuleViolationException("INVALID_PLACEMENT_POINTS");
             }
         }
+    }
+
+    public int pointsFor(Placement placement) {
+        return switch (placement) {
+            case CHAMPION -> champion;
+            case RUNNER_UP -> runnerUp;
+            case SEMIFINAL -> semifinal;
+            case QUARTERFINAL -> quarterfinal;
+            case GROUP_STAGE -> groupStage;
+        };
     }
 }

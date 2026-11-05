@@ -113,6 +113,25 @@ class RankingCalculatorTest {
                 .containsExactly(tuple(1, "Caio"), tuple(2, "Beto"), tuple(3, "Ana"));
     }
 
+    /** Decision D-028: points, titles, finals, game difference; wins do not matter. */
+    @Test
+    void dailyTournamentOrdersByPointsThenTitlesThenFinalsThenGameDifference() {
+        PlayerStats morePoints = stats(9, 1, 8, 20, 50, 140);
+        PlayerStats points120 = stats(9, 8, 1, 50, 20, 120);
+        List<RankingEntry> ranking = RankingCalculator.rank(List.of(
+                new Candidate(ana, points120, T0, T0, new TournamentRecord(2, 0, 2)),
+                new Candidate(beto, morePoints, T0, T0, new TournamentRecord(2, 0, 0)),
+                new Candidate(caio, points120, T0, T0, new TournamentRecord(2, 1, 1))), true);
+
+        assertThat(ranking).extracting(RankingEntry::displayName).containsExactly("Beto", "Caio", "Ana");
+        assertThat(ranking.getFirst().tournament()).isEqualTo(new TournamentRecord(2, 0, 0));
+
+        assertThat(RankingCalculator.rank(List.of(
+                new Candidate(ana, stats(6, 6, 0, 36, 20, 70), T0, T0, new TournamentRecord(1, 0, 1)),
+                new Candidate(beto, stats(6, 1, 5, 36, 10, 70), T0, T0, new TournamentRecord(1, 0, 1))), true))
+                .extracting(RankingEntry::displayName).containsExactly("Beto", "Ana");
+    }
+
     private static void assertOrder(List<Candidate> candidates, String... names) {
         assertThat(RankingCalculator.rank(candidates)).extracting(RankingEntry::displayName).containsExactly(names);
     }

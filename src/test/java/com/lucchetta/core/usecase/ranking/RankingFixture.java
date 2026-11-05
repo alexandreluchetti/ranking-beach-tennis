@@ -15,6 +15,7 @@ import com.lucchetta.core.scoring.RankingEligibilityPolicy;
 import com.lucchetta.core.support.InMemoryMatches;
 import com.lucchetta.core.support.InMemoryPlayers;
 import com.lucchetta.core.support.InMemorySeasons;
+import com.lucchetta.core.support.InMemoryStages;
 import com.lucchetta.core.support.TestLeague;
 import com.lucchetta.core.usecase.league.LeagueAccess;
 import com.lucchetta.core.usecase.match.LeagueMatches;
@@ -44,6 +45,7 @@ public class RankingFixture {
     public final InMemoryPlayers players = new InMemoryPlayers();
     public final InMemorySeasons seasons = new InMemorySeasons();
     public final InMemoryMatches matches = new InMemoryMatches();
+    public final InMemoryStages stages = new InMemoryStages(matches);
     public final TestLeague league = new TestLeague();
     public final LeagueAccess access = league.access(new GetOrCreateCurrentPlayer(players, CLOCK));
     public final QuerySeasons querySeasons = new QuerySeasons(access, seasons, CLOCK);

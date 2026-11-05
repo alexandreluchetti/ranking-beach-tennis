@@ -3,8 +3,10 @@ package com.lucchetta.core.usecase.ranking;
 import com.lucchetta.core.domain.AuthenticatedUser;
 import com.lucchetta.core.domain.Season;
 import com.lucchetta.core.domain.league.LeagueMember;
+import com.lucchetta.core.domain.tournament.TournamentStage;
 import com.lucchetta.core.port.LeagueMemberRepository;
 import com.lucchetta.core.port.PlayerRepository;
+import com.lucchetta.core.port.TournamentStageRepository;
 import com.lucchetta.core.stats.RankingEntry;
 import com.lucchetta.core.usecase.league.LeagueAccess;
 import com.lucchetta.core.usecase.match.LeagueMatches;
@@ -17,8 +19,8 @@ import java.util.Optional;
 import java.util.UUID;
 
 /**
- * Ranking of one season of a league, computed from its matches at query time (D-007). League
- * members only (D-020).
+ * Ranking of one season of a league, computed from its matches at query time (D-007), and for a
+ * daily tournament season from its stages too (D-028). League members only (D-020).
  */
 public class GetSeasonRanking {
 
@@ -30,17 +32,20 @@ public class GetSeasonRanking {
     private final PlayerRepository playerRepository;
     private final LeagueMemberRepository memberRepository;
     private final LeagueMatches leagueMatches;
+    private final TournamentStageRepository stageRepository;
 
     public GetSeasonRanking(LeagueAccess leagueAccess,
                             QuerySeasons querySeasons,
                             PlayerRepository playerRepository,
                             LeagueMemberRepository memberRepository,
-                            LeagueMatches leagueMatches) {
+                            LeagueMatches leagueMatches,
+                            TournamentStageRepository stageRepository) {
         this.leagueAccess = leagueAccess;
         this.querySeasons = querySeasons;
         this.playerRepository = playerRepository;
         this.memberRepository = memberRepository;
         this.leagueMatches = leagueMatches;
+        this.stageRepository = stageRepository;
     }
 
     public SeasonRanking bySeasonId(AuthenticatedUser user, UUID leagueId, UUID seasonId) {
@@ -60,6 +65,12 @@ public class GetSeasonRanking {
         List<MatchDetails> matches = leagueMatches.all(season.leagueId());
         List<LeagueMember> members = memberRepository.findByLeague(season.leagueId());
         return new SeasonRanking(view, SeasonRankingBuilder.build(season, matches, members,
-                SeasonRankingBuilder.playersOf(playerRepository, members, matches)));
+                SeasonRankingBuilder.playersOf(playerRepository, members, matches),
+                stagesOf(stageRepository, season)));
+    }
+
+    /** The stages of a daily tournament season; none for any other type. */
+    static List<TournamentStage> stagesOf(TournamentStageRepository stageRepository, Season season) {
+        return season.dailyTournament() ? stageRepository.findBySeason(season.id()) : List.of();
     }
 }

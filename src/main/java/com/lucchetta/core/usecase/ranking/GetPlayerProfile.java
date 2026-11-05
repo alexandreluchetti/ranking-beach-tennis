@@ -4,9 +4,11 @@ import com.lucchetta.core.domain.AuthenticatedUser;
 import com.lucchetta.core.domain.Player;
 import com.lucchetta.core.domain.SeasonStatus;
 import com.lucchetta.core.domain.league.LeagueMember;
+import com.lucchetta.core.domain.tournament.TournamentStage;
 import com.lucchetta.core.exception.NotFoundException;
 import com.lucchetta.core.port.LeagueMemberRepository;
 import com.lucchetta.core.port.PlayerRepository;
+import com.lucchetta.core.port.TournamentStageRepository;
 import com.lucchetta.core.stats.PlayerStats;
 import com.lucchetta.core.stats.RankingEntry;
 import com.lucchetta.core.stats.StatisticsCalculator;
@@ -31,7 +33,8 @@ public class GetPlayerProfile {
     /**
      * @param currentSeason null when the league has no active season
      * @param career        all valid matches in the league, inside or outside seasons; points
-     *                      only from matches that counted
+     *                      only from matches that counted (placement points of daily tournament
+     *                      seasons stay in their season standings)
      * @param pastSeasons   closed seasons the player is ranked in, most recent first
      */
     public record PlayerProfile(Player player, SeasonStanding currentSeason, PlayerStats career,
@@ -43,17 +46,20 @@ public class GetPlayerProfile {
     private final LeagueMemberRepository memberRepository;
     private final QuerySeasons querySeasons;
     private final LeagueMatches leagueMatches;
+    private final TournamentStageRepository stageRepository;
 
     public GetPlayerProfile(LeagueAccess leagueAccess,
                             PlayerRepository playerRepository,
                             LeagueMemberRepository memberRepository,
                             QuerySeasons querySeasons,
-                            LeagueMatches leagueMatches) {
+                            LeagueMatches leagueMatches,
+                            TournamentStageRepository stageRepository) {
         this.leagueAccess = leagueAccess;
         this.playerRepository = playerRepository;
         this.memberRepository = memberRepository;
         this.querySeasons = querySeasons;
         this.leagueMatches = leagueMatches;
+        this.stageRepository = stageRepository;
     }
 
     public PlayerProfile execute(AuthenticatedUser user, UUID leagueId, UUID playerId) {
@@ -71,7 +77,8 @@ public class GetPlayerProfile {
             if (view.status() == SeasonStatus.PLANNED) {
                 continue;
             }
-            SeasonStanding standing = standingOf(view, matches, members, players, playerId);
+            SeasonStanding standing = standingOf(view, matches, members, players, playerId,
+                    GetSeasonRanking.stagesOf(stageRepository, view.season()));
             if (view.status() == SeasonStatus.ACTIVE) {
                 current = standing;
             } else if (standing != null) {
@@ -87,12 +94,12 @@ public class GetPlayerProfile {
     }
 
     private static SeasonStanding standingOf(SeasonView view, List<MatchDetails> matches, List<LeagueMember> members,
-                                             List<Player> players, UUID playerId) {
-        List<RankingEntry> ranking = SeasonRankingBuilder.build(view.season(), matches, members, players);
+                                             List<Player> players, UUID playerId, List<TournamentStage> stages) {
+        List<RankingEntry> ranking = SeasonRankingBuilder.build(view.season(), matches, members, players, stages);
         return ranking.stream()
                 .filter(e -> e.playerId().equals(playerId))
                 .findFirst()
-                .map(e -> new SeasonStanding(view, e.position(), ranking.size(), e.stats()))
+                .map(e -> new SeasonStanding(view, e.position(), ranking.size(), e.stats(), e.tournament()))
                 .orElse(null);
     }
 }
