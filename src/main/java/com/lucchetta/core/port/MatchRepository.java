@@ -27,6 +27,9 @@ public interface MatchRepository {
      */
     Match update(Match match);
 
+    /** Matches of a tournament stage, of any status. */
+    List<Match> findByStage(UUID stageId);
+
     /** Valid (not voided) matches of the league played in {@code [from, to)}. */
     List<Match> findValidPlayedBetween(UUID leagueId, Instant from, Instant to);
 

@@ -36,7 +36,7 @@ public class MatchRepositoryAdapter implements MatchRepository {
     private static final String SELECT_MATCH = """
             select id, league_id, played_at, format, team_a_games, team_b_games, tiebreak_team_a_points,
                    tiebreak_team_b_points, status, registered_by, registered_at, updated_at,
-                   void_reason, voided_by, voided_at, version
+                   void_reason, voided_by, voided_at, version, stage_id
             from match
             """;
 
@@ -56,6 +56,15 @@ public class MatchRepositoryAdapter implements MatchRepository {
                 .query(MatchRepositoryAdapter::mapRow)
                 .list();
         return assemble(rows).stream().findFirst();
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public List<Match> findByStage(UUID stageId) {
+        return assemble(jdbcClient.sql(SELECT_MATCH + " where stage_id = :stageId order by played_at")
+                .param("stageId", stageId)
+                .query(MatchRepositoryAdapter::mapRow)
+                .list());
     }
 
     @Override
@@ -103,9 +112,9 @@ public class MatchRepositoryAdapter implements MatchRepository {
         int inserted = jdbcClient.sql("""
                         insert into match (id, league_id, played_at, format, team_a_games, team_b_games,
                                            tiebreak_team_a_points, tiebreak_team_b_points, status,
-                                           registered_by, registered_at, updated_at)
+                                           registered_by, registered_at, updated_at, stage_id)
                         values (:id, :leagueId, :playedAt, :format, :teamAGames, :teamBGames, :tiebreakA, :tiebreakB,
-                                :status, :registeredBy, :registeredAt, :updatedAt)
+                                :status, :registeredBy, :registeredAt, :updatedAt, :stageId)
                         on conflict (id) do nothing
                         """)
                 .param("id", match.id())
@@ -120,6 +129,7 @@ public class MatchRepositoryAdapter implements MatchRepository {
                 .param("registeredBy", match.registeredBy())
                 .param("registeredAt", utc(match.registeredAt()))
                 .param("updatedAt", utc(match.updatedAt()))
+                .param("stageId", match.stageId())
                 .update();
         if (inserted == 0) {
             return false;
@@ -189,7 +199,7 @@ public class MatchRepositoryAdapter implements MatchRepository {
         for (MatchRow row : rows) {
             matches.add(new Match(row.id(), row.leagueId(), row.playedAt(), row.score(), participants.get(row.id()),
                     row.status(), row.registeredBy(), row.registeredAt(), row.updatedAt(), row.voiding(),
-                    row.version()));
+                    row.version(), row.stageId()));
         }
         return matches;
     }
@@ -229,7 +239,8 @@ public class MatchRepositoryAdapter implements MatchRepository {
                 instant(rs, "registered_at"),
                 instant(rs, "updated_at"),
                 voiding,
-                rs.getInt("version"));
+                rs.getInt("version"),
+                rs.getObject("stage_id", UUID.class));
     }
 
     private static Instant instant(ResultSet rs, String column) throws SQLException {
@@ -241,6 +252,7 @@ public class MatchRepositoryAdapter implements MatchRepository {
     }
 
     private record MatchRow(UUID id, UUID leagueId, Instant playedAt, Score score, MatchStatus status,
-                            UUID registeredBy, Instant registeredAt, Instant updatedAt, VoidInfo voiding, int version) {
+                            UUID registeredBy, Instant registeredAt, Instant updatedAt, VoidInfo voiding, int version,
+                            UUID stageId) {
     }
 }

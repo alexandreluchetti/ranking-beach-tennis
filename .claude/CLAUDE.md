@@ -157,8 +157,10 @@ Windows bloqueia o jar e `./mvnw verify` falha no repackage: pare-o ou rode em u
 - Fórmula de pontos: `GamesPlusWinBonusScoringPolicy` — **único lugar** onde a fórmula existe (D-003).
 - Política de elegibilidade: `RankingEligibilityPolicy` (convidados → D-004; dias da semana da temporada → D-025;
   torneio do dia → D-026).
-- Tipo de ranking da temporada (`RankingType`, `PlacementPoints`): D-026 a D-028. Quem lança placares na liga
-  (`ScoreEntry`): D-029.
+- Tipo de ranking da temporada (`RankingType`, `PlacementPoints`): D-026 a D-028. Etapas do torneio do dia:
+  `core/domain/tournament/TournamentStage` (sorteio, grupos, chave, colocações) e `core/usecase/tournament`
+  (`ManageStages`, `StageScores`, `QueryStages`); o placar de cada jogo é uma partida com `stageId`.
+  Quem lança placares na liga (`ScoreEntry`): D-029.
 - Validação de placar: `Score` / `MatchFormat` (D-002).
 - Cálculo de ranking: `RankingCalculator`, ordem de desempate em D-013.
 - Possível duplicata e idempotência do registro: `RegisterMatch` (D-012).

@@ -330,6 +330,29 @@ published; then they are removed.
   never gives fewer points than a worse one (equal values allowed).
 - When only administrators record scores (D-029), a resend of a match already stored still answers
   with it, so a phone that saved a match offline before the change does not get stuck.
+- Daily tournament stage (D-027):
+  - A stage may be opened for today or a past playing day of the season, never a future one. The
+    draw uses a cryptographically secure random generator; pairs are dealt to groups in turn, so
+    group sizes differ by at most one, and each group plays round robin (circle method), the
+    groups interleaved round by round.
+  - Order inside a group: wins, game difference, games won, then the draw order. With three
+    groups, the two group winners that go straight to the semifinals are the best by win rate,
+    then game difference per game, then games won per game, then group number. Bracket: two
+    groups A1×B2 and B1×A2; three groups (winners ranked W1–W3, runners-up R1–R3 of the same
+    groups) W3×R2 and R1×R3, then W1 × winner of the first and W2 × winner of the second; four
+    groups A1×B2, C1×D2, B1×A2, D1×C2. Two pairs of the same group meet again only in the final.
+  - Each game score is a match of the league linked to the stage: it shows in the history,
+    counts for statistics and the stage game difference, notifies its players and the league
+    administrators like any match, and gives no points per match (D-028). Pair A plays as team A.
+    A score entered on the stage day is dated at that moment; on a later day, at noon of the
+    stage day.
+  - A first score follows the league setting (D-029); league administrators (and the system
+    administrator) may always enter, correct (with the match version, optional reason) and clear
+    (required reason; the match is voided) a score. A knockout score changes only while the
+    next round has no score; the next round is then drawn again. Stage matches are not changed
+    through the match correction and void endpoints.
+  - The draw may be redone (with new players or format) and the stage deleted only while no score
+    was ever entered for it.
 
 ## Proposed (awaiting approval)
 
