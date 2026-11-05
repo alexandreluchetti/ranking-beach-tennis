@@ -13,11 +13,15 @@ import com.lucchetta.core.domain.match.MatchFormat;
 import com.lucchetta.core.domain.match.MatchStatus;
 import com.lucchetta.core.domain.tournament.Placement;
 import com.lucchetta.core.domain.tournament.StageFixture;
+import com.lucchetta.core.domain.tournament.StagePair;
 import com.lucchetta.core.domain.tournament.StageRound;
 import com.lucchetta.core.exception.ConflictException;
 import com.lucchetta.core.exception.ForbiddenException;
+import com.lucchetta.core.port.LeagueMatchCache;
 import com.lucchetta.core.scoring.GamesPlusWinBonusScoringPolicy;
 import com.lucchetta.core.scoring.RankingEligibilityPolicy;
+import com.lucchetta.core.stats.RankingEntry;
+import com.lucchetta.core.stats.TournamentRecord;
 import com.lucchetta.core.support.DirectTransactionRunner;
 import com.lucchetta.core.support.InMemoryMatchAudit;
 import com.lucchetta.core.support.InMemoryMatches;
@@ -27,6 +31,7 @@ import com.lucchetta.core.support.InMemorySeasons;
 import com.lucchetta.core.support.InMemoryStages;
 import com.lucchetta.core.support.TestLeague;
 import com.lucchetta.core.usecase.league.LeagueAccess;
+import com.lucchetta.core.usecase.match.LeagueMatches;
 import com.lucchetta.core.usecase.match.MatchDetails;
 import com.lucchetta.core.usecase.match.MatchDetailsAssembler;
 import com.lucchetta.core.usecase.match.MatchValidator;
@@ -35,6 +40,9 @@ import com.lucchetta.core.usecase.notification.MatchNotificationComposer;
 import com.lucchetta.core.usecase.notification.MatchNotifier;
 import com.lucchetta.core.usecase.notification.PushDispatcher;
 import com.lucchetta.core.usecase.player.GetOrCreateCurrentPlayer;
+import com.lucchetta.core.usecase.ranking.GetPlayerProfile;
+import com.lucchetta.core.usecase.ranking.GetSeasonRanking;
+import com.lucchetta.core.usecase.ranking.SeasonStanding;
 import com.lucchetta.core.usecase.season.QuerySeasons;
 import org.junit.jupiter.api.Test;
 
@@ -46,7 +54,9 @@ import java.time.LocalTime;
 import java.time.ZoneOffset;
 import java.util.ArrayList;
 import java.util.EnumSet;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Random;
 import java.util.UUID;
 
@@ -281,6 +291,74 @@ class StageUseCasesTest {
         view = scores.record(user(admin), TestLeague.ID, stageId, 1, entry(6, 0));
         assertThat(view.stage().knockoutDrawn()).isTrue();
         assertThat(view.results().get(1).pairBGames()).isZero();
+    }
+
+    @Test
+    void seasonRankingSumsThePlacementPointsOfFinishedStages() {
+        Player late = players.add("Gil");
+        league.members(late);
+        StageView first = playStage(TODAY.minusDays(7));
+        StageView unfinished = open(null);
+        scores.record(user(admin), TestLeague.ID, unfinished.stage().id(), 1, entry(6, 3));
+
+        List<RankingEntry> ranking = ranking().current(user(admin), TestLeague.ID).orElseThrow().entries();
+
+        Map<UUID, Integer> expected = new HashMap<>();
+        first.placements().forEach((pair, placement) -> {
+            StagePair p = first.stage().pair(pair);
+            for (int position : List.of(p.firstPosition(), p.secondPosition())) {
+                UUID player = first.stage().entrant(position).playerId();
+                if (player != null) {
+                    expected.put(player, PlacementPoints.DEFAULT.pointsFor(placement));
+                }
+            }
+        });
+        assertThat(ranking).hasSize(8); // admin, six members and Gil; never the guest
+        assertThat(ranking).allSatisfy(e -> {
+            assertThat(e.stats().points()).isEqualTo(expected.getOrDefault(e.playerId(), 0));
+            assertThat(e.tournament()).isNotNull();
+        });
+        RankingEntry leader = ranking.getFirst();
+        assertThat(leader.stats().points()).isEqualTo(100);
+        assertThat(leader.tournament()).isEqualTo(new TournamentRecord(1, 1, 1));
+        assertThat(leader.stats().matchesPlayed()).isPositive(); // statistics still come from the stage matches
+        RankingEntry gil = ranking.stream().filter(e -> e.playerId().equals(late.id())).findFirst().orElseThrow();
+        assertThat(gil.tournament()).isEqualTo(TournamentRecord.EMPTY);
+        assertThat(ranking.getLast().stats().points()).isZero();
+
+        SeasonStanding standing = profiles().execute(user(admin), TestLeague.ID, leader.playerId()).currentSeason();
+        assertThat(standing.position()).isEqualTo(1);
+        assertThat(standing.tournament()).isEqualTo(new TournamentRecord(1, 1, 1));
+    }
+
+    @Test
+    void clearingTheFinalRemovesThePlacementPoints() {
+        StageView played = playStage(null);
+        StageFixture fin = played.stage().fixtures().getLast();
+
+        scores.clear(user(admin), TestLeague.ID, played.stage().id(), fin.number(), "Final anotada errada");
+
+        assertThat(ranking().current(user(admin), TestLeague.ID).orElseThrow().entries())
+                .allSatisfy(e -> assertThat(e.stats().points()).isZero());
+    }
+
+    private StageView playStage(LocalDate date) {
+        StageView view = open(date);
+        while (!view.stage().finished()) {
+            StageFixture next = view.stage().fixtures().stream().filter(f -> !f.scored()).findFirst().orElseThrow();
+            view = scores.record(user(admin), TestLeague.ID, view.stage().id(), next.number(), entry(6, 3));
+        }
+        return view;
+    }
+
+    private GetSeasonRanking ranking() {
+        return new GetSeasonRanking(access, new QuerySeasons(access, seasons, CLOCK), players, league.leagues,
+                new LeagueMatches(matches, assembler, LeagueMatchCache.NONE), stages);
+    }
+
+    private GetPlayerProfile profiles() {
+        return new GetPlayerProfile(access, players, league.leagues, new QuerySeasons(access, seasons, CLOCK),
+                new LeagueMatches(matches, assembler, LeagueMatchCache.NONE), stages);
     }
 
     private StageView open(LocalDate date) {

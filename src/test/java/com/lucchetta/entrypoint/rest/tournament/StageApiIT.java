@@ -41,7 +41,7 @@ class StageApiIT extends IntegrationTest {
                                 """.formatted(TODAY.minusDays(10), TODAY.plusDays(30))))
                 .andExpect(status().isCreated());
         memberIds.add(join(ANA));
-        for (String name : List.of("Beto", "Caio", "Dani", "Edu", "Fabi")) {
+        for (String name : List.of("Beto", "Caio", "Dani", "Edu", "Fabi", "Gabi", "Hugo")) {
             memberIds.add(join(token(name.toLowerCase() + "-uid", name, null)));
         }
     }
@@ -49,13 +49,13 @@ class StageApiIT extends IntegrationTest {
     @Test
     void wholeStageFromTheDrawToTheChampion() throws Exception {
         String body = mockMvc.perform(post(STAGES).with(adminToken()).contentType(MediaType.APPLICATION_JSON)
-                        .content(stageJson(memberIds, "\"Convidado 1\"", "\"Convidado 2\"")))
+                        .content(stageJson(memberIds)))
                 .andExpect(status().isCreated())
                 .andExpect(jsonPath("$.date").value(TODAY.toString()))
                 .andExpect(jsonPath("$.format").value("STANDARD"))
                 .andExpect(jsonPath("$.players.length()").value(8))
                 .andExpect(jsonPath("$.players[0].displayName").value("Ana"))
-                .andExpect(jsonPath("$.players[7].guestName").value("Convidado 2"))
+                .andExpect(jsonPath("$.players[7].displayName").value("Hugo"))
                 .andExpect(jsonPath("$.pairs.length()").value(4))
                 .andExpect(jsonPath("$.groups.length()").value(1))
                 .andExpect(jsonPath("$.fixtures.length()").value(6))
@@ -91,6 +91,26 @@ class StageApiIT extends IntegrationTest {
 
         assertThat(jdbcTemplate.queryForObject("select count(*) from match where stage_id = ?", Integer.class,
                 UUID.fromString(stage))).isEqualTo(7);
+        String ranking = mockMvc.perform(get("/api/leagues/" + DefaultLeague.ID + "/seasons/current/ranking")
+                        .with(ANA))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.season.rankingType").value("DAILY_TOURNAMENT"))
+                // The eight present and the system administrator, who joined when creating the season (D-023).
+                .andExpect(jsonPath("$.entries.length()").value(9))
+                .andExpect(jsonPath("$.entries[0].points").value(100))
+                .andExpect(jsonPath("$.entries[0].titles").value(1))
+                .andExpect(jsonPath("$.entries[0].finals").value(1))
+                .andExpect(jsonPath("$.entries[0].stagesPlayed").value(1))
+                .andExpect(jsonPath("$.entries[7].points").value(20))
+                .andExpect(jsonPath("$.entries[8].points").value(0))
+                .andExpect(jsonPath("$.entries[8].stagesPlayed").value(0))
+                .andReturn().getResponse().getContentAsString();
+        String leader = JsonPath.read(ranking, "$.entries[0].playerId");
+        mockMvc.perform(get("/api/leagues/" + DefaultLeague.ID + "/players/" + leader + "/profile").with(ANA))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.currentSeason.position").value(1))
+                .andExpect(jsonPath("$.currentSeason.stats.points").value(100))
+                .andExpect(jsonPath("$.currentSeason.tournament.titles").value(1));
         mockMvc.perform(get("/api/leagues/" + DefaultLeague.ID + "/matches").with(ANA))
                 .andExpect(jsonPath("$.items.length()").value(7))
                 .andExpect(jsonPath("$.items[0].stageId").value(stage))
@@ -169,7 +189,7 @@ class StageApiIT extends IntegrationTest {
                         .contentType(MediaType.APPLICATION_JSON).content("{\"format\": \"SHORT\"}"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.format").value("SHORT"))
-                .andExpect(jsonPath("$.players.length()").value(8));
+                .andExpect(jsonPath("$.players.length()").value(10));
         mockMvc.perform(delete(STAGES + "/" + stage).with(adminToken()))
                 .andExpect(status().isNoContent());
         assertThat(jdbcTemplate.queryForObject("select count(*) from tournament_stage", Integer.class)).isZero();

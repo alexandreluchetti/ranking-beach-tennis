@@ -353,6 +353,16 @@ published; then they are removed.
     through the match correction and void endpoints.
   - The draw may be redone (with new players or format) and the stage deleted only while no score
     was ever entered for it.
+- Daily tournament ranking (D-028):
+  - A stage gives placement points once its final has a score; clearing the final takes them
+    away. The table in force is the season's (locked once it starts).
+  - After points, titles, finals and game difference, the remaining criteria of D-013 apply:
+    fewer matches played, more games won, reached the current points first (the final of the
+    stage that gave the latest points), joined the league first, name, registration.
+  - Ranking members are the same as for points per match (D-021); a member who missed every stage
+    is listed with zero. Matches, wins and games in the ranking come from the stage matches.
+  - Career statistics of a profile keep their points from points-per-match seasons only; the
+    placement points stay in the season standings.
 
 ## Proposed (awaiting approval)
 

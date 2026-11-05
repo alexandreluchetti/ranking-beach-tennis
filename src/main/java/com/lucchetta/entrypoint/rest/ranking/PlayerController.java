@@ -27,12 +27,19 @@ public class PlayerController {
     public record PlayerSummary(UUID id, String displayName) {
     }
 
-    public record StandingResponse(SeasonResponse season, int position, int rankedPlayers, StatsResponse stats) {
+    /** @param tournament stages, titles and finals in a daily tournament season (D-028); null otherwise */
+    public record StandingResponse(SeasonResponse season, int position, int rankedPlayers, StatsResponse stats,
+                                   TournamentResponse tournament) {
 
         static StandingResponse from(SeasonStanding standing) {
             return standing == null ? null : new StandingResponse(SeasonResponse.from(standing.season()),
-                    standing.position(), standing.rankedPlayers(), StatsResponse.from(standing.stats()));
+                    standing.position(), standing.rankedPlayers(), StatsResponse.from(standing.stats()),
+                    standing.tournament() == null ? null : new TournamentResponse(standing.tournament().stages(),
+                            standing.tournament().titles(), standing.tournament().finals()));
         }
+    }
+
+    public record TournamentResponse(int stagesPlayed, int titles, int finals) {
     }
 
     /**

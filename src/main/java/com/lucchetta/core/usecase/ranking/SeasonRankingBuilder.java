@@ -5,11 +5,14 @@ import com.lucchetta.core.domain.Player;
 import com.lucchetta.core.domain.Season;
 import com.lucchetta.core.domain.league.LeagueMember;
 import com.lucchetta.core.domain.match.Participant;
+import com.lucchetta.core.domain.tournament.TournamentStage;
 import com.lucchetta.core.port.PlayerRepository;
 import com.lucchetta.core.stats.PlayerStats;
 import com.lucchetta.core.stats.RankingCalculator;
 import com.lucchetta.core.stats.RankingEntry;
+import com.lucchetta.core.stats.StagePlacementCalculator;
 import com.lucchetta.core.stats.StatisticsCalculator;
+import com.lucchetta.core.stats.TournamentRecord;
 import com.lucchetta.core.usecase.match.MatchDetails;
 
 import java.time.Instant;
@@ -30,7 +33,8 @@ import java.util.stream.Collectors;
  * <p>
  * Members: the league's members who joined up to the season's end date (so the active season
  * lists every member, starting at zero), plus anyone who played a match in it, even after
- * leaving the league (decision D-021).
+ * leaving the league (decision D-021). A daily tournament season ranks by the placement points of
+ * its stages (D-028); the statistics still come from the stage matches.
  */
 public final class SeasonRankingBuilder {
 
@@ -43,6 +47,15 @@ public final class SeasonRankingBuilder {
      */
     public static List<RankingEntry> build(Season season, Collection<MatchDetails> matches,
                                            Collection<LeagueMember> members, Collection<Player> players) {
+        return build(season, matches, members, players, List.of());
+    }
+
+    /**
+     * @param stages the season's stages, for a daily tournament season
+     */
+    public static List<RankingEntry> build(Season season, Collection<MatchDetails> matches,
+                                           Collection<LeagueMember> members, Collection<Player> players,
+                                           Collection<TournamentStage> stages) {
         // Only the season's matches that count for the ranking (not voided); guests do not matter (D-004).
         List<MatchDetails> seasonMatches = matches.stream()
                 .filter(d -> d.season() != null && d.season().id().equals(season.id()))
@@ -60,14 +73,32 @@ public final class SeasonRankingBuilder {
                 .map(LeagueMember::playerId)
                 .forEach(ranked::add);
         Map<UUID, PlayerStats> stats = StatisticsCalculator.byPlayer(seasonMatches);
-        Map<UUID, Instant> reachedAt = pointsReachedAt(seasonMatches);
         Map<UUID, Instant> joinedAt = members.stream()
                 .collect(Collectors.toMap(LeagueMember::playerId, LeagueMember::joinedAt));
+        if (season.dailyTournament()) {
+            StagePlacementCalculator.Result placements = StagePlacementCalculator.byPlayer(season, stages,
+                    seasonMatches);
+            ranked.addAll(placements.records().keySet());
+            return RankingCalculator.rank(players.stream()
+                    .filter(p -> ranked.contains(p.id()))
+                    .map(p -> new RankingCalculator.Candidate(p,
+                            withPoints(stats.getOrDefault(p.id(), PlayerStats.EMPTY),
+                                    placements.points().getOrDefault(p.id(), 0)),
+                            placements.reachedAt().get(p.id()), joinedAt.get(p.id()),
+                            placements.records().getOrDefault(p.id(), TournamentRecord.EMPTY)))
+                    .toList(), true);
+        }
+        Map<UUID, Instant> reachedAt = pointsReachedAt(seasonMatches);
         return RankingCalculator.rank(players.stream()
                 .filter(p -> ranked.contains(p.id()))
                 .map(p -> new RankingCalculator.Candidate(p, stats.getOrDefault(p.id(), PlayerStats.EMPTY),
                         reachedAt.get(p.id()), joinedAt.get(p.id())))
                 .toList());
+    }
+
+    private static PlayerStats withPoints(PlayerStats stats, int points) {
+        return new PlayerStats(stats.matchesPlayed(), stats.wins(), stats.losses(), stats.gamesWon(),
+                stats.gamesLost(), points);
     }
 
     /**

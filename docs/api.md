@@ -48,11 +48,11 @@ in any league without being a member.
 |---|---|---|---|
 | GET | `seasons` · `seasons/current` · `seasons/{id}` | member | `current` answers 204 without an active season. |
 | POST · PATCH | `seasons` · `seasons/{id}` | league admin | D-006, D-008, D-010 per league. `playingDays` (D-025): `["TUESDAY", "THURSDAY"]`, omitted = every day; in an active season a change applies from today on (earlier days keep the previous days). `rankingType` (D-026): `MATCH_POINTS` (default) or `DAILY_TOURNAMENT`, with `placementPoints` `{champion, runnerUp, semifinal, quarterfinal, groupStage}` (default 100/70/50/35/20); both locked once the season starts. |
-| GET | `seasons/current/ranking` · `seasons/{id}/ranking` | member | D-013. |
+| GET | `seasons/current/ranking` · `seasons/{id}/ranking` | member | D-013; in a daily tournament season, D-028 with placement `points` and `stagesPlayed`, `titles`, `finals` (null for other seasons). |
 | POST | `matches` | member | Registered players must be members; others as guests (D-021). League administrators only when `scoreEntry` is `ADMINS` (403 `SCORE_ENTRY_ADMINS_ONLY`, D-029). In a daily tournament season the match gives no season points (`NOT_A_TOURNAMENT_MATCH`). |
 | GET | `matches` · `matches/{id}` · `matches/{id}/audit` | member | History with filters. `stageId` marks the game of a daily tournament stage. |
 | PUT · POST | `matches/{id}` · `matches/{id}/void` · `matches/{id}/revert-void` | league admin | Corrections and voids, audited. Not for stage matches (`STAGE_MATCH`): use the stage endpoints. |
-| GET | `players` · `players/{id}/profile` | member | Members only; profile over the league's matches. |
+| GET | `players` · `players/{id}/profile` | member | Members only; profile over the league's matches. Season standings carry `tournament` (`stagesPlayed`, `titles`, `finals`) in a daily tournament season. |
 | GET | `stages?seasonId=` · `stages/{id}` | member | Daily tournament stages (D-027); without `seasonId`, of the active season. The detail has players, pairs (with `placement` once finished), group standings and games (`score` with `matchId`/`matchVersion`). |
 | POST | `stages` | league admin | `{"date"?, "format", "players": [{"playerId"} \| {"guestName"}]}`: 8–32 players, even; draws pairs and groups. |
 | POST · DELETE | `stages/{id}/draw` · `stages/{id}` | league admin | Draw again (`{"format"?, "players"?}`) or delete, only before the first score. |

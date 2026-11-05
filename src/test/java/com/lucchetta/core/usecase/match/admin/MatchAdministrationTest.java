@@ -51,7 +51,7 @@ class MatchAdministrationTest {
                     new MatchNotificationComposer(), RankingFixture.CLOCK),
             new PushDispatcher(notifications, notifications), new DirectTransactionRunner(), RankingFixture.CLOCK);
     private final GetSeasonRanking ranking = new GetSeasonRanking(world.access, world.querySeasons,
-            world.players, world.league.leagues, world.leagueMatches);
+            world.players, world.league.leagues, world.leagueMatches, world.stages);
 
     {
         world.league.administrator(adminPlayer);
