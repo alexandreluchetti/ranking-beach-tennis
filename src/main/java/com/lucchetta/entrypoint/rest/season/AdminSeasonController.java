@@ -49,7 +49,8 @@ public class AdminSeasonController {
         AuthenticatedUser user = currentUserProvider.get();
         return SeasonResponse.from(createSeason.execute(user, leagueScope.resolve(leagueId, user),
                 new CreateSeason.Command(request.name(), request.startDate(), request.endDate(),
-                        request.playingDays())));
+                        request.playingDays(), request.rankingType(),
+                        PlacementPointsDto.toDomain(request.placementPoints()))));
     }
 
     @PatchMapping("/{id}")
@@ -59,6 +60,7 @@ public class AdminSeasonController {
         AuthenticatedUser user = currentUserProvider.get();
         return SeasonResponse.from(updateSeason.execute(user, leagueScope.resolve(leagueId, user), id,
                 new UpdateSeason.Command(request.name(), request.startDate(), request.endDate(),
-                        request.playingDays())));
+                        request.playingDays(), request.rankingType(),
+                        PlacementPointsDto.toDomain(request.placementPoints()))));
     }
 }

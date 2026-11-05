@@ -2,7 +2,9 @@ package com.lucchetta.core.usecase.season;
 
 import com.lucchetta.core.domain.AuthenticatedUser;
 import com.lucchetta.core.domain.BusinessCalendar;
+import com.lucchetta.core.domain.PlacementPoints;
 import com.lucchetta.core.domain.Player;
+import com.lucchetta.core.domain.RankingType;
 import com.lucchetta.core.domain.Season;
 import com.lucchetta.core.domain.SeasonAuditEntry;
 import com.lucchetta.core.exception.ConflictException;
@@ -17,6 +19,7 @@ import java.time.DayOfWeek;
 import java.time.Instant;
 import java.time.LocalDate;
 import java.util.EnumSet;
+import java.util.List;
 import java.util.Objects;
 import java.util.Set;
 import java.util.UUID;
@@ -27,8 +30,17 @@ import java.util.UUID;
  */
 public class CreateSeason {
 
-    /** @param playingDays the days of the week whose matches count (D-025); null means every day */
-    public record Command(String name, LocalDate startDate, LocalDate endDate, Set<DayOfWeek> playingDays) {
+    /**
+     * @param playingDays     the days of the week whose matches count (D-025); null means every day
+     * @param rankingType     null means points per match (D-026)
+     * @param placementPoints daily tournament only; null means the default table (D-028)
+     */
+    public record Command(String name, LocalDate startDate, LocalDate endDate, Set<DayOfWeek> playingDays,
+                          RankingType rankingType, PlacementPoints placementPoints) {
+
+        public Command(String name, LocalDate startDate, LocalDate endDate, Set<DayOfWeek> playingDays) {
+            this(name, startDate, endDate, playingDays, null, null);
+        }
     }
 
     private final LeagueAccess leagueAccess;
@@ -56,10 +68,11 @@ public class CreateSeason {
         Player admin = context.player();
         LocalDate today = BusinessCalendar.today(clock);
         Instant now = clock.instant();
+        RankingType rankingType = Objects.requireNonNullElse(command.rankingType(), RankingType.MATCH_POINTS);
         Season season = new Season(
                 UUID.randomUUID(), leagueId, command.name(), command.startDate(), command.endDate(),
-                Objects.requireNonNullElseGet(command.playingDays(), () -> EnumSet.allOf(DayOfWeek.class)), admin.id(),
-                now, now);
+                Objects.requireNonNullElseGet(command.playingDays(), () -> EnumSet.allOf(DayOfWeek.class)), List.of(),
+                rankingType, placementPoints(rankingType, command.placementPoints()), admin.id(), now, now);
         if (season.endDate().isBefore(today)) {
             throw new RuleViolationException("SEASON_END_IN_PAST");
         }
@@ -74,5 +87,16 @@ public class CreateSeason {
             return inserted;
         });
         return new SeasonView(created, created.statusOn(today));
+    }
+
+    /** A daily tournament without a table gets the default one; other types take none (D-028). */
+    static PlacementPoints placementPoints(RankingType rankingType, PlacementPoints requested) {
+        if (rankingType != RankingType.DAILY_TOURNAMENT) {
+            if (requested != null) {
+                throw new RuleViolationException("PLACEMENT_POINTS_NOT_APPLICABLE");
+            }
+            return null;
+        }
+        return Objects.requireNonNullElse(requested, PlacementPoints.DEFAULT);
     }
 }

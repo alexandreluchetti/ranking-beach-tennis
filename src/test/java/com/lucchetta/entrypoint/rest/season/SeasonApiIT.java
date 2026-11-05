@@ -187,6 +187,77 @@ class SeasonApiIT extends IntegrationTest {
     }
 
     @Test
+    void rankingTypeIsChosenAtCreationAndLockedOnceTheSeasonStarts() throws Exception {
+        String regular = createSeason("Primavera", TODAY.minusDays(5), TODAY.plusDays(5));
+        mockMvc.perform(get("/api/seasons/" + regular).with(userToken()))
+                .andExpect(jsonPath("$.rankingType").value("MATCH_POINTS"))
+                .andExpect(jsonPath("$.placementPoints").doesNotExist());
+        mockMvc.perform(patch("/api/admin/seasons/" + regular).with(adminToken())
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"rankingType\": \"DAILY_TOURNAMENT\"}"))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.code").value("SEASON_RANKING_LOCKED"))
+                .andExpect(jsonPath("$.detail")
+                        .value("O tipo de ranking e os pontos só podem mudar antes de a temporada começar."));
+
+        String tournament = createSeason("""
+                {"name": "Torneio", "startDate": "%s", "endDate": "%s", "rankingType": "DAILY_TOURNAMENT"}
+                """.formatted(TODAY.plusDays(10), TODAY.plusDays(90)));
+        mockMvc.perform(get("/api/seasons/" + tournament).with(userToken()))
+                .andExpect(jsonPath("$.rankingType").value("DAILY_TOURNAMENT"))
+                .andExpect(jsonPath("$.placementPoints.champion").value(100))
+                .andExpect(jsonPath("$.placementPoints.groupStage").value(20));
+        mockMvc.perform(patch("/api/admin/seasons/" + tournament).with(adminToken())
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {"placementPoints": {"champion": 60, "runnerUp": 40, "semifinal": 30,
+                                 "quarterfinal": 20, "groupStage": 10}}
+                                """))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.placementPoints.champion").value(60))
+                .andExpect(jsonPath("$.placementPoints.quarterfinal").value(20));
+        assertThat(jdbcTemplate.queryForMap(
+                "select ranking_type, placement_points::text as points from season where id = ?",
+                UUID.fromString(tournament)))
+                .containsEntry("ranking_type", "DAILY_TOURNAMENT")
+                .containsEntry("points", "{60,40,30,20,10}");
+        assertThat(jdbcTemplate.queryForObject("""
+                select after::text from season_audit where season_id = ? and action = 'UPDATED'
+                """, String.class, UUID.fromString(tournament))).contains("\"champion\": 60");
+    }
+
+    @Test
+    void invalidPlacementPoints() throws Exception {
+        mockMvc.perform(post("/api/admin/seasons").with(adminToken())
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {"name": "Torneio", "startDate": "%s", "endDate": "%s",
+                                 "rankingType": "DAILY_TOURNAMENT", "placementPoints": {"champion": 10,
+                                 "runnerUp": 20, "semifinal": 5, "quarterfinal": 3, "groupStage": 1}}
+                                """.formatted(TODAY, TODAY.plusDays(30))))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.code").value("INVALID_PLACEMENT_POINTS"));
+        mockMvc.perform(post("/api/admin/seasons").with(adminToken())
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {"name": "Primavera", "startDate": "%s", "endDate": "%s", "placementPoints":
+                                 {"champion": 100, "runnerUp": 70, "semifinal": 50, "quarterfinal": 35,
+                                  "groupStage": 20}}
+                                """.formatted(TODAY, TODAY.plusDays(30))))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.code").value("PLACEMENT_POINTS_NOT_APPLICABLE"));
+        mockMvc.perform(post("/api/admin/seasons").with(adminToken())
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {"name": "Torneio", "startDate": "%s", "endDate": "%s",
+                                 "rankingType": "DAILY_TOURNAMENT", "placementPoints": {"champion": 100}}
+                                """.formatted(TODAY, TODAY.plusDays(30))))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.code").value("INVALID_REQUEST"));
+        assertThat(jdbcTemplate.queryForObject("select count(*) from season", Integer.class)).isZero();
+    }
+
+    @Test
     void invalidInputAndUnknownSeason() throws Exception {
         mockMvc.perform(post("/api/admin/seasons").with(adminToken())
                         .contentType(MediaType.APPLICATION_JSON)

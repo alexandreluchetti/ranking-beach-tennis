@@ -20,4 +20,9 @@ public record LeagueView(League league, int memberCount, LeagueRole myRole, bool
     public boolean member() {
         return myRole != null;
     }
+
+    /** Members may register matches unless the league leaves it to its administrators (D-029). */
+    public boolean canEnterScores() {
+        return member() && !league.archived() && league.allowsScoreEntryBy(canAdminister);
+    }
 }

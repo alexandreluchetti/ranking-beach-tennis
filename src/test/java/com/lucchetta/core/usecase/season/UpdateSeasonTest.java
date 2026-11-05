@@ -2,6 +2,8 @@ package com.lucchetta.core.usecase.season;
 
 import com.lucchetta.core.domain.AuthenticatedUser;
 import com.lucchetta.core.domain.PastPlayingDays;
+import com.lucchetta.core.domain.PlacementPoints;
+import com.lucchetta.core.domain.RankingType;
 import com.lucchetta.core.domain.Season;
 import com.lucchetta.core.domain.SeasonAuditEntry;
 import com.lucchetta.core.domain.SeasonStatus;
@@ -211,6 +213,64 @@ class UpdateSeasonTest {
         assertThatThrownBy(() -> execute(REGULAR_USER, active.id(), endDate(TODAY.plusDays(50))))
                 .isInstanceOf(ForbiddenException.class);
         assertThat(seasons.findById(active.id())).contains(active);
+    }
+
+    @Test
+    void plannedSeasonCanBecomeADailyTournamentWithTheDefaultTable() {
+        Season planned = storedSeason(seasons, "Verão", TODAY.plusDays(30), TODAY.plusDays(90));
+
+        SeasonView view = execute(ADMIN, planned.id(), ranking(RankingType.DAILY_TOURNAMENT, null));
+
+        assertThat(view.season().rankingType()).isEqualTo(RankingType.DAILY_TOURNAMENT);
+        assertThat(view.season().placementPoints()).isEqualTo(PlacementPoints.DEFAULT);
+        assertThat(seasons.audit()).singleElement()
+                .satisfies(entry -> assertThat(entry.after()).isEqualTo(view.season()));
+    }
+
+    @Test
+    void plannedDailyTournamentCanChangeOnlyItsTable() {
+        Season planned = storedSeason(seasons, "Verão", TODAY.plusDays(30), TODAY.plusDays(90));
+        execute(ADMIN, planned.id(), ranking(RankingType.DAILY_TOURNAMENT, null));
+        PlacementPoints table = new PlacementPoints(80, 60, 40, 20, 10);
+
+        SeasonView view = execute(ADMIN, planned.id(), ranking(null, table));
+
+        assertThat(view.season().rankingType()).isEqualTo(RankingType.DAILY_TOURNAMENT);
+        assertThat(view.season().placementPoints()).isEqualTo(table);
+    }
+
+    @Test
+    void plannedDailyTournamentCanGoBackToPointsPerMatch() {
+        Season planned = storedSeason(seasons, "Verão", TODAY.plusDays(30), TODAY.plusDays(90));
+        execute(ADMIN, planned.id(), ranking(RankingType.DAILY_TOURNAMENT, null));
+
+        SeasonView view = execute(ADMIN, planned.id(), ranking(RankingType.MATCH_POINTS, null));
+
+        assertThat(view.season().rankingType()).isEqualTo(RankingType.MATCH_POINTS);
+        assertThat(view.season().placementPoints()).isNull();
+    }
+
+    @Test
+    void activeSeasonRankingIsLocked() {
+        Season active = storedSeason(seasons, "Primavera", TODAY.minusDays(10), TODAY.plusDays(20));
+
+        assertThatThrownBy(() -> execute(ADMIN, active.id(), ranking(RankingType.DAILY_TOURNAMENT, null)))
+                .hasMessage("SEASON_RANKING_LOCKED");
+        assertThat(seasons.findById(active.id())).contains(active);
+    }
+
+    @Test
+    void activeSeasonMayRepeatItsCurrentRankingType() {
+        Season active = storedSeason(seasons, "Primavera", TODAY.minusDays(10), TODAY.plusDays(20));
+
+        SeasonView view = execute(ADMIN, active.id(), ranking(RankingType.MATCH_POINTS, null));
+
+        assertThat(view.season()).isEqualTo(active);
+        assertThat(seasons.audit()).isEmpty();
+    }
+
+    private static UpdateSeason.Command ranking(RankingType rankingType, PlacementPoints placementPoints) {
+        return new UpdateSeason.Command(null, null, null, null, rankingType, placementPoints);
     }
 
     private static UpdateSeason.Command endDate(LocalDate endDate) {

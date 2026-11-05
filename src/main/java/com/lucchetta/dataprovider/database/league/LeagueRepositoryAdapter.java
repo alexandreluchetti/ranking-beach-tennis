@@ -2,6 +2,7 @@ package com.lucchetta.dataprovider.database.league;
 
 import com.lucchetta.core.domain.league.League;
 import com.lucchetta.core.domain.league.LeagueVisibility;
+import com.lucchetta.core.domain.league.ScoreEntry;
 import com.lucchetta.core.exception.ConflictException;
 import com.lucchetta.core.port.LeagueRepository;
 import org.springframework.dao.DataIntegrityViolationException;
@@ -26,7 +27,7 @@ public class LeagueRepositoryAdapter implements LeagueRepository {
 
     private static final String NAME_CONSTRAINT = "ux_league_name";
     private static final String SELECT_LEAGUE = """
-            select id, name, description, visibility, invite_code, created_by, created_at, updated_at,
+            select id, name, description, visibility, score_entry, invite_code, created_by, created_at, updated_at,
                    archived_at, archived_by, version
             from league
             """;
@@ -120,15 +121,16 @@ public class LeagueRepositoryAdapter implements LeagueRepository {
     @Transactional
     public League insert(League league) {
         translatingNameConflict(() -> jdbcClient.sql("""
-                        insert into league (id, name, description, visibility, invite_code, created_by, created_at,
-                                            updated_at, archived_at, archived_by, version)
-                        values (:id, :name, :description, :visibility, :inviteCode, :createdBy, :createdAt,
+                        insert into league (id, name, description, visibility, score_entry, invite_code, created_by,
+                                            created_at, updated_at, archived_at, archived_by, version)
+                        values (:id, :name, :description, :visibility, :scoreEntry, :inviteCode, :createdBy, :createdAt,
                                 :updatedAt, :archivedAt, :archivedBy, 0)
                         """)
                 .param("id", league.id())
                 .param("name", league.name())
                 .param("description", league.description())
                 .param("visibility", league.visibility().name())
+                .param("scoreEntry", league.scoreEntry().name())
                 .param("inviteCode", league.inviteCode())
                 .param("createdBy", league.createdBy())
                 .param("createdAt", utc(league.createdAt()))
@@ -145,7 +147,8 @@ public class LeagueRepositoryAdapter implements LeagueRepository {
         int updated = translatingNameConflict(() -> jdbcClient.sql("""
                         update league
                         set name = :name, description = :description, visibility = :visibility,
-                            invite_code = :inviteCode, updated_at = :updatedAt, archived_at = :archivedAt,
+                            score_entry = :scoreEntry, invite_code = :inviteCode, updated_at = :updatedAt,
+                            archived_at = :archivedAt,
                             archived_by = :archivedBy, version = version + 1
                         where id = :id and version = :version
                         """)
@@ -154,6 +157,7 @@ public class LeagueRepositoryAdapter implements LeagueRepository {
                 .param("name", league.name())
                 .param("description", league.description())
                 .param("visibility", league.visibility().name())
+                .param("scoreEntry", league.scoreEntry().name())
                 .param("inviteCode", league.inviteCode())
                 .param("updatedAt", utc(league.updatedAt()))
                 .param("archivedAt", utc(league.archivedAt()))
@@ -187,6 +191,7 @@ public class LeagueRepositoryAdapter implements LeagueRepository {
                 rs.getString("name"),
                 rs.getString("description"),
                 LeagueVisibility.valueOf(rs.getString("visibility")),
+                ScoreEntry.valueOf(rs.getString("score_entry")),
                 rs.getString("invite_code"),
                 rs.getObject("created_by", UUID.class),
                 instant(rs, "created_at"),
