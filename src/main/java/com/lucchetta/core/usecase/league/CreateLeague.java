@@ -6,6 +6,7 @@ import com.lucchetta.core.domain.league.League;
 import com.lucchetta.core.domain.league.LeagueMember;
 import com.lucchetta.core.domain.league.LeagueRole;
 import com.lucchetta.core.domain.league.LeagueVisibility;
+import com.lucchetta.core.domain.league.ScoreEntry;
 import com.lucchetta.core.exception.ConflictException;
 import com.lucchetta.core.exception.RuleViolationException;
 import com.lucchetta.core.port.LeagueMemberRepository;
@@ -14,13 +15,19 @@ import com.lucchetta.core.port.TransactionRunner;
 
 import java.time.Clock;
 import java.time.Instant;
+import java.util.Objects;
 
 /**
  * Any signed-in user creates a league and becomes its administrator (decision D-017).
  */
 public class CreateLeague {
 
-    public record Command(String name, String description, LeagueVisibility visibility) {
+    /** @param scoreEntry who records match scores (D-029); null means any member */
+    public record Command(String name, String description, LeagueVisibility visibility, ScoreEntry scoreEntry) {
+
+        public Command(String name, String description, LeagueVisibility visibility) {
+            this(name, description, visibility, null);
+        }
     }
 
     private final LeagueAccess leagueAccess;
@@ -44,7 +51,8 @@ public class CreateLeague {
     public LeagueView execute(AuthenticatedUser user, Command command) {
         Player creator = leagueAccess.player(user);
         Instant now = clock.instant();
-        League league = League.create(command.name(), command.description(), command.visibility(), creator.id(), now);
+        League league = League.create(command.name(), command.description(), command.visibility(),
+                Objects.requireNonNullElse(command.scoreEntry(), ScoreEntry.MEMBERS), creator.id(), now);
 
         League created = transactionRunner.inTransaction(() -> {
             if (!user.admin()

@@ -4,6 +4,7 @@ import com.lucchetta.core.domain.Player;
 import com.lucchetta.core.domain.league.League;
 import com.lucchetta.core.domain.league.LeagueRole;
 import com.lucchetta.core.domain.league.LeagueVisibility;
+import com.lucchetta.core.domain.league.ScoreEntry;
 import com.lucchetta.core.exception.BusinessException;
 import com.lucchetta.core.exception.ForbiddenException;
 import org.assertj.core.api.ThrowableAssert.ThrowingCallable;
@@ -38,6 +39,36 @@ class LeagueManagementTest {
         assertThat(view.canAdminister()).isTrue();
         assertThat(fixture.leagues.find(view.league().id(), ana.id()).orElseThrow().role())
                 .isEqualTo(LeagueRole.ADMIN);
+    }
+
+    @Test
+    void anyMemberRecordsScoresUnlessChosenOtherwise() {
+        LeagueView open = create(ana, "Liga Aberta", PUBLIC);
+        LeagueView restricted = fixture.createLeague.execute(user(ana),
+                new CreateLeague.Command("Liga Restrita", null, PUBLIC, ScoreEntry.ADMINS));
+
+        assertThat(open.league().scoreEntry()).isEqualTo(ScoreEntry.MEMBERS);
+        assertThat(restricted.league().scoreEntry()).isEqualTo(ScoreEntry.ADMINS);
+        assertThat(restricted.canEnterScores()).isTrue();
+    }
+
+    @Test
+    void leagueAdministratorChangesWhoRecordsScores() {
+        League league = fixture.league("Liga", PUBLIC, ana, bruno);
+
+        LeagueView byAdmin = fixture.updateLeague.execute(user(ana), league.id(),
+                new UpdateLeague.Command(null, null, null, ScoreEntry.ADMINS));
+        assertThat(byAdmin.league().scoreEntry()).isEqualTo(ScoreEntry.ADMINS);
+        assertThat(byAdmin.league().name()).isEqualTo("Liga");
+        assertThat(fixture.queryLeagues.get(user(bruno), league.id()).canEnterScores()).isFalse();
+
+        assertThatThrownBy(() -> fixture.updateLeague.execute(user(bruno), league.id(),
+                new UpdateLeague.Command(null, null, null, ScoreEntry.MEMBERS)))
+                .isInstanceOf(ForbiddenException.class);
+
+        fixture.updateLeague.execute(user(ana), league.id(), new UpdateLeague.Command(null, null, null,
+                ScoreEntry.MEMBERS));
+        assertThat(fixture.queryLeagues.get(user(bruno), league.id()).canEnterScores()).isTrue();
     }
 
     @Test

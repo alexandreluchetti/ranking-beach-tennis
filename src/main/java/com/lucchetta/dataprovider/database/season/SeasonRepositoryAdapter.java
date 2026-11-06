@@ -5,6 +5,7 @@ import com.lucchetta.core.domain.Season;
 import com.lucchetta.core.exception.ConflictException;
 import com.lucchetta.core.port.SeasonRepository;
 import com.lucchetta.core.domain.PastPlayingDays;
+import com.lucchetta.core.domain.PlacementPoints;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.jdbc.core.simple.JdbcClient;
 import org.springframework.stereotype.Component;
@@ -68,8 +69,8 @@ public class SeasonRepositoryAdapter implements SeasonRepository {
     @Transactional
     public Season insert(Season season) {
         SeasonEntity entity = new SeasonEntity(season.id(), season.leagueId(), season.name(), season.startDate(),
-                season.endDate(), toColumn(season.playingDays()), season.createdBy(), season.createdAt(),
-                season.updatedAt());
+                season.endDate(), toColumn(season.playingDays()), season.rankingType(),
+                toColumn(season.placementPoints()), season.createdBy(), season.createdAt(), season.updatedAt());
         SeasonEntity saved = saveTranslatingOverlap(entity);
         savePastPlayingDays(season);
         leagueMatchCache.evict(season.leagueId());
@@ -82,7 +83,7 @@ public class SeasonRepositoryAdapter implements SeasonRepository {
         SeasonEntity entity = jpaRepository.findById(season.id())
                 .orElseThrow(() -> new IllegalStateException("Season not found: " + season.id()));
         entity.apply(season.name(), season.startDate(), season.endDate(), toColumn(season.playingDays()),
-                season.updatedAt());
+                season.rankingType(), toColumn(season.placementPoints()), season.updatedAt());
         SeasonEntity saved = saveTranslatingOverlap(entity);
         savePastPlayingDays(season);
         leagueMatchCache.evict(season.leagueId());
@@ -145,8 +146,18 @@ public class SeasonRepositoryAdapter implements SeasonRepository {
 
     private static Season toDomain(SeasonEntity entity, List<PastPlayingDays> past) {
         return new Season(entity.getId(), entity.getLeagueId(), entity.getName(), entity.getStartDate(),
-                entity.getEndDate(), fromColumn(entity.getPlayingDays()), past, entity.getCreatedBy(),
-                entity.getCreatedAt(), entity.getUpdatedAt());
+                entity.getEndDate(), fromColumn(entity.getPlayingDays()), past, entity.getRankingType(),
+                fromColumn(entity.getPlacementPoints()), entity.getCreatedBy(), entity.getCreatedAt(),
+                entity.getUpdatedAt());
+    }
+
+    private static Integer[] toColumn(PlacementPoints points) {
+        return points == null ? null : new Integer[]{
+                points.champion(), points.runnerUp(), points.semifinal(), points.quarterfinal(), points.groupStage()};
+    }
+
+    private static PlacementPoints fromColumn(Integer[] points) {
+        return points == null ? null : new PlacementPoints(points[0], points[1], points[2], points[3], points[4]);
     }
 
     private static Short[] toColumn(Set<DayOfWeek> days) {

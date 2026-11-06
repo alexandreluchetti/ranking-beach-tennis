@@ -17,12 +17,13 @@ import java.util.UUID;
  * A ranking season of a league; seasons of one league never overlap (D-008). Both dates are
  * inclusive. The status is derived from the dates, so a season closes automatically once its end
  * date has passed (decision D-006). Only matches played on one of the season's playing days
- * (Brasília) count for its ranking (D-025).
+ * (Brasília) count for its ranking (D-025). The ranking type decides how points are given (D-026).
  *
  * @param playingDays     the current playing days
  * @param pastPlayingDays earlier playing days, oldest first, kept when the days changed while the
  *                        season was active, so matches played before the change keep counting (or
  *                        not) as they did
+ * @param placementPoints points per placement of a daily tournament; null for any other ranking type
  */
 public record Season(
         UUID id,
@@ -32,6 +33,8 @@ public record Season(
         LocalDate endDate,
         Set<DayOfWeek> playingDays,
         List<PastPlayingDays> pastPlayingDays,
+        RankingType rankingType,
+        PlacementPoints placementPoints,
         UUID createdBy,
         Instant createdAt,
         Instant updatedAt) {
@@ -51,6 +54,12 @@ public record Season(
         }
         playingDays = Collections.unmodifiableSet(EnumSet.copyOf(playingDays));
         pastPlayingDays = List.copyOf(Objects.requireNonNullElse(pastPlayingDays, List.of()));
+        Objects.requireNonNull(rankingType, "rankingType");
+        if (rankingType == RankingType.DAILY_TOURNAMENT) {
+            Objects.requireNonNull(placementPoints, "placementPoints");
+        } else if (placementPoints != null) {
+            throw new RuleViolationException("PLACEMENT_POINTS_NOT_APPLICABLE");
+        }
         if (startDate == null || endDate == null || endDate.isBefore(startDate)) {
             throw new RuleViolationException("INVALID_SEASON_PERIOD");
         }
@@ -63,9 +72,11 @@ public record Season(
         }
     }
 
+    /** A season of points per match (D-003), the type of every season created before D-026. */
     public Season(UUID id, UUID leagueId, String name, LocalDate startDate, LocalDate endDate,
                   Set<DayOfWeek> playingDays, UUID createdBy, Instant createdAt, Instant updatedAt) {
-        this(id, leagueId, name, startDate, endDate, playingDays, List.of(), createdBy, createdAt, updatedAt);
+        this(id, leagueId, name, startDate, endDate, playingDays, List.of(), RankingType.MATCH_POINTS, null,
+                createdBy, createdAt, updatedAt);
     }
 
     /** Seasons created before D-025 (and requests that omit the days) play every day of the week. */
@@ -94,13 +105,23 @@ public record Season(
                 .contains(day.getDayOfWeek());
     }
 
+    public boolean dailyTournament() {
+        return rankingType == RankingType.DAILY_TOURNAMENT;
+    }
+
     public boolean overlaps(LocalDate otherStart, LocalDate otherEnd) {
         return !startDate.isAfter(otherEnd) && !otherStart.isAfter(endDate);
     }
 
     public Season withChanges(String newName, LocalDate newStart, LocalDate newEnd, Instant now) {
-        return new Season(id, leagueId, newName, newStart, newEnd, playingDays, pastPlayingDays, createdBy, createdAt,
-                now);
+        return new Season(id, leagueId, newName, newStart, newEnd, playingDays, pastPlayingDays, rankingType,
+                placementPoints, createdBy, createdAt, now);
+    }
+
+    /** Only while the season is planned: the type is locked once it starts (D-026). */
+    public Season withRanking(RankingType newRankingType, PlacementPoints newPlacementPoints, Instant now) {
+        return new Season(id, leagueId, name, startDate, endDate, playingDays, pastPlayingDays, newRankingType,
+                newPlacementPoints, createdBy, createdAt, now);
     }
 
     /**
@@ -122,7 +143,8 @@ public record Season(
         } else if (!lastDay.isBefore(startDate) && !changedEarlierTheSameDay) {
             past.add(new PastPlayingDays(lastDay, playingDays));
         }
-        return new Season(id, leagueId, name, startDate, endDate, newPlayingDays, past, createdBy, createdAt, now);
+        return new Season(id, leagueId, name, startDate, endDate, newPlayingDays, past, rankingType, placementPoints,
+                createdBy, createdAt, now);
     }
 
     private static String normalizeName(String value) {

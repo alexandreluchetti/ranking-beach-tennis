@@ -46,9 +46,10 @@ public abstract class IntegrationTest {
 
     @BeforeEach
     void cleanDatabase() {
-        jdbcTemplate.execute("truncate table device_token, notification, match_audit, match_participant, match, season_audit,"
-                + " season_past_playing_days, season, league_invitation, league_join_request, league_member, league,"
-                + " app_user cascade");
+        jdbcTemplate.execute("truncate table device_token, notification, match_audit, match_participant,"
+                + " tournament_fixture, tournament_pair, tournament_stage_player, match, tournament_stage,"
+                + " season_audit, season_past_playing_days, season, league_invitation, league_join_request,"
+                + " league_member, league, app_user cascade");
         // The migrated league (V6), which the endpoints without a league are bound to.
         jdbcTemplate.update("""
                 insert into league (id, name, visibility, created_at, updated_at)

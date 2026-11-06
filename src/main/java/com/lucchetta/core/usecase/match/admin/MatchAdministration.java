@@ -32,6 +32,7 @@ import java.util.UUID;
  * may act in any league): correction, void and void reversal.
  * Every change is audited with the state before and after. Points and statistics are derived
  * from the stored matches (D-007), so they follow automatically and are never applied twice.
+ * Matches of a daily tournament stage are changed through the stage instead.
  */
 public class MatchAdministration {
 
@@ -138,6 +139,10 @@ public class MatchAdministration {
         Result result = transactionRunner.inTransaction(() -> {
             Match current = matchRepository.findById(matchId)
                     .orElseThrow(() -> new NotFoundException("MATCH_NOT_FOUND"));
+            if (current.stageMatch()) {
+                // Its score is changed through the stage, which keeps the knockout consistent (D-027).
+                throw new RuleViolationException("STAGE_MATCH");
+            }
             Match next = change.apply(current, now, admin.id());
             if (next == current) {
                 return new Result(new Outcome(assembler.assemble(current), null, action), List.of());

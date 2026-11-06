@@ -1,5 +1,7 @@
 package com.lucchetta.core.scoring;
 
+import com.lucchetta.core.domain.PlacementPoints;
+import com.lucchetta.core.domain.RankingType;
 import com.lucchetta.core.domain.Season;
 import com.lucchetta.core.domain.match.Match;
 import com.lucchetta.core.domain.match.MatchFormat;
@@ -15,6 +17,7 @@ import org.junit.jupiter.params.provider.CsvSource;
 import java.time.DayOfWeek;
 import java.time.Instant;
 import java.time.LocalDate;
+import java.util.EnumSet;
 import java.util.List;
 import java.util.Set;
 import java.util.UUID;
@@ -109,6 +112,28 @@ class ScoringAndEligibilityTest {
 
         assertThat(eligibility.evaluate(voided, seasonPlaying(DayOfWeek.MONDAY)).reason())
                 .isEqualTo(NotCountedReason.VOIDED);
+    }
+
+    @Test
+    void matchOutsideAStageGivesNoPointsInADailyTournament() {
+        Season tournament = dailyTournament(EnumSet.allOf(DayOfWeek.class));
+
+        assertThat(eligibility.evaluate(match(sixFour(), registeredOnly()), tournament))
+                .isEqualTo(RankingEligibility.notCounted(NotCountedReason.NOT_A_TOURNAMENT_MATCH));
+    }
+
+    @Test
+    void notAPlayingDayTakesPrecedenceOverNotATournamentMatch() {
+        Season tournament = dailyTournament(EnumSet.of(DayOfWeek.MONDAY));
+
+        assertThat(eligibility.evaluate(match(sixFour(), registeredOnly()), tournament).reason())
+                .isEqualTo(NotCountedReason.NOT_A_PLAYING_DAY);
+    }
+
+    private static Season dailyTournament(Set<DayOfWeek> days) {
+        return new Season(UUID.randomUUID(), TestLeague.ID, "Torneio", LocalDate.of(2026, 10, 1),
+                LocalDate.of(2026, 12, 31), days, List.of(), RankingType.DAILY_TOURNAMENT, PlacementPoints.DEFAULT,
+                UUID.randomUUID(), PLAYED, PLAYED);
     }
 
     private static Season seasonPlaying(DayOfWeek... days) {

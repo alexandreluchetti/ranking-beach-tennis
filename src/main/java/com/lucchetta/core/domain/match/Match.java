@@ -22,6 +22,8 @@ import java.util.stream.Stream;
  *
  * @param voiding present only when the match is voided
  * @param version incremented on every change; guards administrative edits against lost updates
+ * @param stageId the daily tournament stage whose game this match is (D-027), or null for an
+ *                independent match
  */
 public record Match(
         UUID id,
@@ -34,7 +36,8 @@ public record Match(
         Instant registeredAt,
         Instant updatedAt,
         VoidInfo voiding,
-        int version) {
+        int version,
+        UUID stageId) {
 
     private static final Comparator<Participant> POSITION_ORDER =
             Comparator.comparing(Participant::team).thenComparingInt(Participant::slot);
@@ -58,16 +61,28 @@ public record Match(
         participants = validatedParticipants(participants);
     }
 
+    /** An independent match (not part of a tournament stage). */
+    public Match(UUID id, UUID leagueId, Instant playedAt, Score score, List<Participant> participants,
+                 MatchStatus status, UUID registeredBy, Instant registeredAt, Instant updatedAt, VoidInfo voiding,
+                 int version) {
+        this(id, leagueId, playedAt, score, participants, status, registeredBy, registeredAt, updatedAt, voiding,
+                version, null);
+    }
+
     /** A newly registered match, or one built without void information or version. */
     public Match(UUID id, UUID leagueId, Instant playedAt, Score score, List<Participant> participants,
                  MatchStatus status, UUID registeredBy, Instant registeredAt, Instant updatedAt) {
-        this(id, leagueId, playedAt, score, participants, status, registeredBy, registeredAt, updatedAt, null, 0);
+        this(id, leagueId, playedAt, score, participants, status, registeredBy, registeredAt, updatedAt, null, 0, null);
+    }
+
+    public boolean stageMatch() {
+        return stageId != null;
     }
 
     /** Administrative correction of the user-provided content. Status and registration data are kept. */
     public Match corrected(Instant newPlayedAt, Score newScore, List<Participant> newParticipants, Instant now) {
         return new Match(id, leagueId, newPlayedAt, newScore, newParticipants, status, registeredBy, registeredAt, now,
-                voiding, version);
+                voiding, version, stageId);
     }
 
     public Match voided(String reason, UUID by, Instant now) {
@@ -75,7 +90,7 @@ public record Match(
             throw new RuleViolationException("MATCH_ALREADY_VOIDED");
         }
         return new Match(id, leagueId, playedAt, score, participants, MatchStatus.VOIDED, registeredBy, registeredAt,
-                now, new VoidInfo(reason, by, now), version);
+                now, new VoidInfo(reason, by, now), version, stageId);
     }
 
     public Match voidReverted(Instant now) {
@@ -83,7 +98,7 @@ public record Match(
             throw new RuleViolationException("MATCH_NOT_VOIDED");
         }
         return new Match(id, leagueId, playedAt, score, participants, MatchStatus.VALID, registeredBy, registeredAt,
-                now, null, version);
+                now, null, version, stageId);
     }
 
     /** Registered players taking part, in position order. */

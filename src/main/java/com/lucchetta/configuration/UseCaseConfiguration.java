@@ -10,6 +10,7 @@ import com.lucchetta.core.port.PlayerRepository;
 import com.lucchetta.core.port.PushSender;
 import com.lucchetta.core.port.SeasonAuditLog;
 import com.lucchetta.core.port.SeasonRepository;
+import com.lucchetta.core.port.TournamentStageRepository;
 import com.lucchetta.core.port.TransactionRunner;
 import com.lucchetta.core.scoring.GamesPlusWinBonusScoringPolicy;
 import com.lucchetta.core.scoring.RankingEligibilityPolicy;
@@ -191,16 +192,17 @@ public class UseCaseConfiguration {
     @Bean
     GetSeasonRanking getSeasonRanking(LeagueAccess leagueAccess, QuerySeasons querySeasons,
                                       PlayerRepository playerRepository,
-                                      LeagueMemberRepository leagueMemberRepository, LeagueMatches leagueMatches) {
+                                      LeagueMemberRepository leagueMemberRepository, LeagueMatches leagueMatches,
+                                      TournamentStageRepository stageRepository) {
         return new GetSeasonRanking(leagueAccess, querySeasons, playerRepository, leagueMemberRepository,
-                leagueMatches);
+                leagueMatches, stageRepository);
     }
 
     @Bean
     GetPlayerProfile getPlayerProfile(LeagueAccess leagueAccess, PlayerRepository playerRepository,
                                       LeagueMemberRepository leagueMemberRepository, QuerySeasons querySeasons,
-                                      LeagueMatches leagueMatches) {
+                                      LeagueMatches leagueMatches, TournamentStageRepository stageRepository) {
         return new GetPlayerProfile(leagueAccess, playerRepository, leagueMemberRepository, querySeasons,
-                leagueMatches);
+                leagueMatches, stageRepository);
     }
 }

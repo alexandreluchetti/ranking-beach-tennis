@@ -3,6 +3,7 @@ package com.lucchetta.core.usecase.league;
 import com.lucchetta.core.domain.AuthenticatedUser;
 import com.lucchetta.core.domain.league.League;
 import com.lucchetta.core.domain.league.LeagueVisibility;
+import com.lucchetta.core.domain.league.ScoreEntry;
 import com.lucchetta.core.exception.ConflictException;
 import com.lucchetta.core.port.LeagueRepository;
 import com.lucchetta.core.port.TransactionRunner;
@@ -11,15 +12,19 @@ import java.time.Clock;
 import java.util.UUID;
 
 /**
- * League administrators change the name, description or visibility of a league that is not
- * archived.
+ * League administrators change the name, description, visibility or score entry (D-029) of a
+ * league that is not archived.
  */
 public class UpdateLeague {
 
     /**
      * Null fields are left unchanged; a blank description removes it.
      */
-    public record Command(String name, String description, LeagueVisibility visibility) {
+    public record Command(String name, String description, LeagueVisibility visibility, ScoreEntry scoreEntry) {
+
+        public Command(String name, String description, LeagueVisibility visibility) {
+            this(name, description, visibility, null);
+        }
     }
 
     private final LeagueAccess leagueAccess;
@@ -48,6 +53,7 @@ public class UpdateLeague {
                     command.name() == null ? current.name() : command.name(),
                     command.description() == null ? current.description() : command.description(),
                     command.visibility() == null ? current.visibility() : command.visibility(),
+                    command.scoreEntry() == null ? current.scoreEntry() : command.scoreEntry(),
                     clock.instant());
             if (!changed.name().equalsIgnoreCase(current.name())
                     && leagueRepository.existsByName(changed.name(), current.id())) {

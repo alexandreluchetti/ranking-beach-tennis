@@ -215,6 +215,54 @@ published; then they are removed.
 - Seasons created before this rule, and requests that omit the days (app published before it),
   play every day of the week.
 
+### D-026 — Ranking type of a season
+- When creating a season, the league administrator chooses its ranking type:
+  - **A — Points per match** (`MATCH_POINTS`): the rules of D-003, unchanged. Every season created
+    before this rule, and every request that omits the type, is of this type.
+  - **B — Daily tournament** (`DAILY_TOURNAMENT`): each playing day (D-025) may hold one stage
+    (D-027); points come from the placement in each stage (D-028).
+- The type (and the placement points of type B) may change while the season is planned and is
+  locked once it starts, since points are derived (D-007).
+- In a type B season only stage matches give season points. A match registered outside a stage
+  is kept for history and career/global statistics, but gives no season points (reason
+  `NOT_A_TOURNAMENT_MATCH`, after voided, no season and not a playing day).
+
+### D-027 — Stage of a daily tournament (type B)
+- On a playing day the app asks the league administrator whether there will be games. If so, they
+  mark who is present: league members from the list, anyone else as a guest by name (D-004).
+- 8 to 32 players (members and guests). With an odd number, the administrator adds a guest or
+  someone sits out; the app warns before the draw.
+- The server draws fixed pairs for the whole stage and splits them into groups; the draw is stored
+  and may be redone until the first score is entered.
+- Groups of 3 or 4 pairs (a single group of 5 when there are 5 pairs), round robin; the first two
+  of each group qualify:
+
+  | Pairs | Groups | Qualified | Knockout |
+  |---|---|---|---|
+  | 4–5 | 1 | 2 | final |
+  | 6–8 | 2 | 4 | semifinals, final |
+  | 9–12 | 3 | 6 | quarterfinals; the two best group winners go straight to the semifinals |
+  | 13–16 | 4 | 8 | quarterfinals, semifinals, final |
+
+- The administrator chooses the match format (D-002, standard or short) of each stage.
+- The knockout is drawn only when every group match has a score. Correcting a group match after
+  that requires the administrator to reopen the group phase.
+
+### D-028 — Points and ranking of a daily tournament (type B)
+- Each player gets the points of their final placement in the stage. Default table, editable when
+  creating the season (locked once it starts, D-026): champion 100, runner-up 70, semifinal 50,
+  quarterfinal 35, group stage 20.
+- The season ranking is the sum of the stages. Tie-breaks: points, titles, finals, game
+  difference.
+- Guests play and fill a place but get no points and are never ranked (D-004); the partner of a
+  guest scores normally. Stage matches count for career and global statistics (D-022).
+
+### D-029 — Who records match scores
+- Each league chooses, when created and at any later time, who records match scores: **any member**
+  (`MEMBERS`, the default and the setting of every existing league) or **administrators only**
+  (`ADMINS`). It applies to every match of the league; corrections and voids stay with the
+  administrators (D-018).
+
 ## Technical defaults (easy to change)
 
 - Display name: 2–40 characters, whitespace normalized. Initial value: name from the login
@@ -278,6 +326,43 @@ published; then they are removed.
   (D-007). Global statistics, match history, notifications and permissions are not cached.
 - Every API request is logged with its route template, status and duration (no ids), to measure
   response times before optimizing further.
+- Placement points of a daily tournament (D-028): whole numbers from 0 to 1000; a better placement
+  never gives fewer points than a worse one (equal values allowed).
+- When only administrators record scores (D-029), a resend of a match already stored still answers
+  with it, so a phone that saved a match offline before the change does not get stuck.
+- Daily tournament stage (D-027):
+  - A stage may be opened for today or a past playing day of the season, never a future one. The
+    draw uses a cryptographically secure random generator; pairs are dealt to groups in turn, so
+    group sizes differ by at most one, and each group plays round robin (circle method), the
+    groups interleaved round by round.
+  - Order inside a group: wins, game difference, games won, then the draw order. With three
+    groups, the two group winners that go straight to the semifinals are the best by win rate,
+    then game difference per game, then games won per game, then group number. Bracket: two
+    groups A1×B2 and B1×A2; three groups (winners ranked W1–W3, runners-up R1–R3 of the same
+    groups) W3×R2 and R1×R3, then W1 × winner of the first and W2 × winner of the second; four
+    groups A1×B2, C1×D2, B1×A2, D1×C2. Two pairs of the same group meet again only in the final.
+  - Each game score is a match of the league linked to the stage: it shows in the history,
+    counts for statistics and the stage game difference, notifies its players and the league
+    administrators like any match, and gives no points per match (D-028). Pair A plays as team A.
+    A score entered on the stage day is dated at that moment; on a later day, at noon of the
+    stage day.
+  - A first score follows the league setting (D-029); league administrators (and the system
+    administrator) may always enter, correct (with the match version, optional reason) and clear
+    (required reason; the match is voided) a score. A knockout score changes only while the
+    next round has no score; the next round is then drawn again. Stage matches are not changed
+    through the match correction and void endpoints.
+  - The draw may be redone (with new players or format) and the stage deleted only while no score
+    was ever entered for it.
+- Daily tournament ranking (D-028):
+  - A stage gives placement points once its final has a score; clearing the final takes them
+    away. The table in force is the season's (locked once it starts).
+  - After points, titles, finals and game difference, the remaining criteria of D-013 apply:
+    fewer matches played, more games won, reached the current points first (the final of the
+    stage that gave the latest points), joined the league first, name, registration.
+  - Ranking members are the same as for points per match (D-021); a member who missed every stage
+    is listed with zero. Matches, wins and games in the ranking come from the stage matches.
+  - Career statistics of a profile keep their points from points-per-match seasons only; the
+    placement points stay in the season standings.
 
 ## Proposed (awaiting approval)
 

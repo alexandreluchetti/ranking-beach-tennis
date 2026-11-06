@@ -73,7 +73,9 @@ public class MatchDetailsAssembler {
 
         Map<Team, Integer> points = new EnumMap<>(Team.class);
         for (Team team : Team.values()) {
-            points.put(team, eligibility.counted() ? scoringPolicy.pointsPerPlayer(match, team) : 0);
+            // A daily tournament gives points per stage placement (D-028), never per match.
+            boolean matchPoints = eligibility.counted() && !season.dailyTournament();
+            points.put(team, matchPoints ? scoringPolicy.pointsPerPlayer(match, team) : 0);
         }
         Map<UUID, String> names = match.participants().stream()
                 .map(Participant::playerId)

@@ -49,6 +49,10 @@ public class SeasonAuditLogAdapter implements SeasonAuditLog {
         snapshot.put("startDate", season.startDate().toString());
         snapshot.put("endDate", season.endDate().toString());
         snapshot.put("playingDays", season.playingDays().stream().map(Enum::name).toList());
+        snapshot.put("rankingType", season.rankingType().name());
+        if (season.placementPoints() != null) {
+            snapshot.put("placementPoints", season.placementPoints());
+        }
         if (!season.pastPlayingDays().isEmpty()) {
             snapshot.put("pastPlayingDays", season.pastPlayingDays().stream()
                     .map(past -> Map.of("lastDay", past.lastDay().toString(),

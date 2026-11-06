@@ -21,7 +21,7 @@ class GetPlayerProfileTest {
 
     private final RankingFixture world = new RankingFixture();
     private final GetPlayerProfile useCase = new GetPlayerProfile(world.access, world.players, world.league.leagues,
-            world.querySeasons, world.leagueMatches);
+            world.querySeasons, world.leagueMatches, world.stages);
     private final AuthenticatedUser beto = RankingFixture.user(world.beto);
 
     @Test
@@ -57,7 +57,8 @@ class GetPlayerProfileTest {
         RankingFixture noActive = new RankingFixture();
         GetPlayerProfile withoutActive = new GetPlayerProfile(noActive.access, noActive.players,
                 noActive.league.leagues,
-                new QuerySeasons(noActive.access, new InMemorySeasons(), RankingFixture.CLOCK), noActive.leagueMatches);
+                new QuerySeasons(noActive.access, new InMemorySeasons(), RankingFixture.CLOCK), noActive.leagueMatches,
+                noActive.stages);
 
         GetPlayerProfile.PlayerProfile profile = withoutActive.execute(RankingFixture.user(noActive.ana),
                 TestLeague.ID, noActive.ana.id());

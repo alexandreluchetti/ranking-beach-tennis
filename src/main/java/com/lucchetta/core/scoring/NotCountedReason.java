@@ -10,5 +10,7 @@ public enum NotCountedReason {
     /** The match date is not within any season. */
     NO_SEASON,
     /** The match was played inside a season, on a day of the week that is not one of its playing days (D-025). */
-    NOT_A_PLAYING_DAY
+    NOT_A_PLAYING_DAY,
+    /** The match is in a daily tournament season (D-026) but outside its stages, whose placements give the points. */
+    NOT_A_TOURNAMENT_MATCH
 }

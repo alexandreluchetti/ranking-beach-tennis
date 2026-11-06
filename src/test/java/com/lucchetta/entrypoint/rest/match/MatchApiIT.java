@@ -160,6 +160,25 @@ class MatchApiIT extends IntegrationTest {
     }
 
     @Test
+    void matchOutsideAStageOfADailyTournamentIsKeptButGivesNoPoints() throws Exception {
+        LocalDate today = LocalDate.now(BRASILIA);
+        mockMvc.perform(post("/api/admin/seasons").with(adminToken())
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {"name": "Torneio", "startDate": "%s", "endDate": "%s",
+                                 "rankingType": "DAILY_TOURNAMENT"}
+                                """.formatted(today.minusDays(30), today.plusDays(30))))
+                .andExpect(status().isCreated());
+
+        register(body(UUID.randomUUID().toString(), 6, 4, player(ana), player(beto), player(caio), player(dani), false))
+                .andExpect(status().isCreated())
+                .andExpect(jsonPath("$.counted").value(false))
+                .andExpect(jsonPath("$.notCountedReason").value("NOT_A_TOURNAMENT_MATCH"))
+                .andExpect(jsonPath("$.season.name").value("Torneio"))
+                .andExpect(jsonPath("$.teamA[0].points").value(0));
+    }
+
+    @Test
     void changingThePlayingDaysDoesNotAffectEarlierDays() throws Exception {
         createActiveSeason();
         OffsetDateTime today = playedAt;

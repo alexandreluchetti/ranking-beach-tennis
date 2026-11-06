@@ -7,6 +7,8 @@ import org.junit.jupiter.api.Test;
 import org.springframework.http.MediaType;
 import org.springframework.test.web.servlet.request.RequestPostProcessor;
 
+import java.util.UUID;
+
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.patch;
@@ -41,6 +43,49 @@ class LeagueApiIT extends IntegrationTest {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.length()").value(1))
                 .andExpect(jsonPath("$[0].name").value("Liga do Clube"));
+    }
+
+    @Test
+    void leagueChoosesWhoRecordsScores() throws Exception {
+        String league = JsonPath.read(mockMvc.perform(post("/api/leagues").with(ANA)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"name\": \"Liga do Clube\", \"visibility\": \"PUBLIC\", \"scoreEntry\": \"ADMINS\"}"))
+                .andExpect(status().isCreated())
+                .andExpect(jsonPath("$.scoreEntry").value("ADMINS"))
+                .andExpect(jsonPath("$.canEnterScores").value(true))
+                .andReturn().getResponse().getContentAsString(), "$.id");
+        String bruno = joinAndGetPlayerId(league, BRUNO);
+        mockMvc.perform(get("/api/leagues/" + league).with(BRUNO))
+                .andExpect(jsonPath("$.scoreEntry").value("ADMINS"))
+                .andExpect(jsonPath("$.canEnterScores").value(false));
+        mockMvc.perform(get("/api/leagues/" + league).with(CARLA))
+                .andExpect(jsonPath("$.scoreEntry").isEmpty())
+                .andExpect(jsonPath("$.canEnterScores").value(false));
+
+        String match = """
+                {"id": "%s", "format": "STANDARD", "teamAGames": 6, "teamBGames": 4,
+                 "teamA": [{"playerId": "%s"}, {"guest": true}],
+                 "teamB": [{"guest": true}, {"guest": true}]}
+                """;
+        mockMvc.perform(post("/api/leagues/" + league + "/matches").with(BRUNO)
+                        .contentType(MediaType.APPLICATION_JSON).content(match.formatted(UUID.randomUUID(), bruno)))
+                .andExpect(status().isForbidden())
+                .andExpect(jsonPath("$.code").value("SCORE_ENTRY_ADMINS_ONLY"))
+                .andExpect(jsonPath("$.detail").value("Nesta liga, só os administradores lançam os placares."));
+
+        mockMvc.perform(patch("/api/leagues/" + league).with(BRUNO).contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"scoreEntry\": \"MEMBERS\"}"))
+                .andExpect(status().isForbidden());
+        mockMvc.perform(patch("/api/leagues/" + league).with(ANA).contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"scoreEntry\": \"MEMBERS\"}"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.scoreEntry").value("MEMBERS"))
+                .andExpect(jsonPath("$.name").value("Liga do Clube"));
+        mockMvc.perform(post("/api/leagues/" + league + "/matches").with(BRUNO)
+                        .contentType(MediaType.APPLICATION_JSON).content(match.formatted(UUID.randomUUID(), bruno)))
+                .andExpect(status().isCreated());
+        mockMvc.perform(get("/api/leagues/" + DefaultLeague.ID).with(BRUNO))
+                .andExpect(jsonPath("$.scoreEntry").isEmpty());
     }
 
     @Test

@@ -25,8 +25,9 @@ import java.util.Objects;
 import java.util.UUID;
 
 /**
- * Registers a finished match in a league. Any member of the league may do it (decision D-021);
- * every registered player must be a member too, anyone else takes part as a guest.
+ * Registers a finished match in a league. Any member of the league may do it (decision D-021),
+ * unless the league leaves it to its administrators (D-029); every registered player must be a
+ * member too, anyone else takes part as a guest.
  * <ul>
  *     <li>Idempotent by client-generated id: resending returns the stored match without creating
  *     anything. Different content under the same id is a conflict, unless the administrator has
@@ -100,6 +101,10 @@ public class RegisterMatch {
             Match existing = matchRepository.findById(match.id()).orElse(null);
             if (existing != null) {
                 return new Outcome(idempotentResend(existing, match, command.playedAt() == null), List.of());
+            }
+            // Checked after the resend: a match already stored stays readable if the setting changed meanwhile.
+            if (!context.league().allowsScoreEntryBy(context.canAdminister())) {
+                throw new ForbiddenException("SCORE_ENTRY_ADMINS_ONLY");
             }
             validator.validate(match, now);
             if (!command.confirmPossibleDuplicate()) {
