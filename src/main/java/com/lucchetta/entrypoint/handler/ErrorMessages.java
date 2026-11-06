@@ -65,7 +65,7 @@ final class ErrorMessages {
             Map.entry("STAGE_ALREADY_EXISTS", "Já existe uma etapa nesse dia."),
             Map.entry("STAGE_MODIFIED", "A etapa foi alterada por outra operação. Atualize e tente novamente."),
             Map.entry("INVALID_STAGE_FORMAT", "Escolha o formato dos jogos da etapa: normal ou curto."),
-            Map.entry("INVALID_STAGE_PLAYER_COUNT", "A etapa precisa de 8 a 32 jogadores presentes."),
+            Map.entry("INVALID_STAGE_PLAYER_COUNT", "A etapa precisa de 8 a 64 jogadores presentes."),
             Map.entry("STAGE_ODD_PLAYER_COUNT",
                     "O número de jogadores precisa ser par: inclua um convidado ou retire alguém."),
             Map.entry("DUPLICATE_STAGE_PLAYER", "Um jogador foi incluído mais de uma vez na etapa."),

@@ -23,18 +23,18 @@ import java.util.function.Function;
 import java.util.stream.Collectors;
 
 /**
- * Points of a daily tournament season (D-028): each finished stage (its final has a score) gives
- * every registered player the points of their pair's placement, from the season's table. Guests
- * get nothing (D-004). Results come from the stage matches, so a correction or a cleared score
- * is reflected at once (D-007).
+ * Points of a daily tournament season (D-028): each finished stage (its final and third place game
+ * have a score, D-030) gives every registered player the points of their pair's placement, from
+ * the season's table. Guests get nothing (D-004). Results come from the stage matches, so a
+ * correction or a cleared score is reflected at once (D-007).
  */
 public final class StagePlacementCalculator {
 
     /**
      * @param points     placement points of each player
      * @param records    stages, titles and finals of each player
-     * @param reachedAt  when each player with points reached their current total: the final of
-     *                   the last stage that gave them points
+     * @param reachedAt  when each player with points reached their current total: the last game
+     *                   (final or third place) of the last stage that gave them points
      */
     public record Result(Map<UUID, Integer> points, Map<UUID, TournamentRecord> records,
                          Map<UUID, Instant> reachedAt) {
@@ -68,7 +68,9 @@ public final class StagePlacementCalculator {
                 if (match != null) {
                     results.put(fixture.number(),
                             new FixtureResult(match.score().teamAGames(), match.score().teamBGames()));
-                    if (fixture.round() == StageRound.FINAL) {
+                    boolean lastLevel = fixture.round() == StageRound.FINAL
+                            || fixture.round() == StageRound.THIRD_PLACE;
+                    if (lastLevel && (finalPlayedAt == null || match.playedAt().isAfter(finalPlayedAt))) {
                         finalPlayedAt = match.playedAt();
                     }
                 }
