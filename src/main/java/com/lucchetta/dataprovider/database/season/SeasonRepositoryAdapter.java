@@ -153,11 +153,13 @@ public class SeasonRepositoryAdapter implements SeasonRepository {
 
     private static Integer[] toColumn(PlacementPoints points) {
         return points == null ? null : new Integer[]{
-                points.champion(), points.runnerUp(), points.semifinal(), points.quarterfinal(), points.groupStage()};
+                points.champion(), points.runnerUp(), points.thirdPlace(), points.fourthPlace(), points.quarterfinal(),
+                points.roundOf16(), points.groupStage()};
     }
 
     private static PlacementPoints fromColumn(Integer[] points) {
-        return points == null ? null : new PlacementPoints(points[0], points[1], points[2], points[3], points[4]);
+        return points == null ? null : new PlacementPoints(points[0], points[1], points[2], points[3], points[4],
+                points[5], points[6]);
     }
 
     private static Short[] toColumn(Set<DayOfWeek> days) {

@@ -19,6 +19,7 @@ import java.util.UUID;
 import java.util.function.BiPredicate;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
+import java.util.stream.Stream;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
@@ -43,7 +44,11 @@ class TournamentStageTest {
             "18,3,9",
             "24,3,18",
             "26,4,15",
-            "32,4,24"})
+            "32,4,24",
+            "34,5,21",
+            "40,5,30",
+            "48,6,36",
+            "64,8,48"})
     void drawsPairsAndGroupsAndARoundRobinInEachGroup(int players, int groups, int groupGames) {
         TournamentStage stage = stage(players);
 
@@ -78,8 +83,8 @@ class TournamentStageTest {
     }
 
     @ParameterizedTest(name = "{0} players")
-    @CsvSource({"6", "34", "0"})
-    void needsEightToThirtyTwoPlayers(int players) {
+    @CsvSource({"6", "66", "0"})
+    void needsEightToSixtyFourPlayers(int players) {
         assertThatThrownBy(() -> stage(players))
                 .isInstanceOf(RuleViolationException.class)
                 .hasMessage("INVALID_STAGE_PLAYER_COUNT");
@@ -94,16 +99,23 @@ class TournamentStageTest {
         assertThatThrownBy(() -> new StageEntrant(1, null, "  ")).hasMessage("INVALID_STAGE_GUEST_NAME");
     }
 
-    /** Placements of a whole stage: champion, runner-up, semifinal, quarterfinal, group stage. */
+    /**
+     * Placements of a whole stage: champion, runner-up, third and fourth (whenever there are
+     * semifinals), quarterfinal, round of 16, group stage.
+     */
     @ParameterizedTest(name = "{0} players")
     @CsvSource({
-            "8,0,0,2",
-            "10,0,0,3",
-            "16,2,0,4",
-            "20,2,2,4",
-            "24,2,2,6",
-            "32,2,4,8"})
-    void wholeStageGivesEveryPairAPlacement(int players, int semifinalists, int quarterfinalists, int groupStage) {
+            "8,0,0,0,2",
+            "10,0,0,0,3",
+            "16,1,0,0,4",
+            "20,1,2,0,4",
+            "24,1,2,0,6",
+            "32,1,4,0,8",
+            "34,1,4,2,7",
+            "48,1,4,4,12",
+            "64,1,4,8,16"})
+    void wholeStageGivesEveryPairAPlacement(int players, int thirdAndFourth, int quarterfinalists, int roundOf16,
+                                            int groupStage) {
         TournamentStage stage = playToTheEnd(stage(players));
 
         Map<Placement, Long> placements = stage.placements(results).values().stream()
@@ -111,10 +123,108 @@ class TournamentStageTest {
         assertThat(stage.finished()).isTrue();
         assertThat(placements.get(Placement.CHAMPION)).isEqualTo(1);
         assertThat(placements.get(Placement.RUNNER_UP)).isEqualTo(1);
-        assertThat(placements.getOrDefault(Placement.SEMIFINAL, 0L)).isEqualTo(semifinalists);
+        assertThat(placements.getOrDefault(Placement.THIRD, 0L)).isEqualTo(thirdAndFourth);
+        assertThat(placements.getOrDefault(Placement.FOURTH, 0L)).isEqualTo(thirdAndFourth);
+        assertThat(placements).doesNotContainKey(Placement.SEMIFINAL);
         assertThat(placements.getOrDefault(Placement.QUARTERFINAL, 0L)).isEqualTo(quarterfinalists);
+        assertThat(placements.getOrDefault(Placement.ROUND_OF_16, 0L)).isEqualTo(roundOf16);
         assertThat(placements.getOrDefault(Placement.GROUP_STAGE, 0L)).isEqualTo(groupStage);
         assertThat(stage.advanced(results, NOW)).isEqualTo(stage);
+    }
+
+    @Test
+    void semifinalLosersPlayForThirdPlaceDrawnWithTheFinal() {
+        TournamentStage stage = scoreAll(stage(16)).advanced(results, NOW);
+        stage = scoreAll(stage).advanced(results, NOW);
+        List<StageFixture> semifinals = knockout(stage, StageRound.SEMIFINAL);
+        StageFixture third = knockout(stage, StageRound.THIRD_PLACE).getFirst();
+        StageFixture fin = knockout(stage, StageRound.FINAL).getFirst();
+
+        assertThat(third.number()).isLessThan(fin.number());
+        assertThat(Set.of(third.pairA(), third.pairB(), fin.pairA(), fin.pairB())).containsExactlyInAnyOrderElementsOf(
+                semifinals.stream().flatMap(f -> IntStream.of(f.pairA(), f.pairB()).boxed()).toList());
+        TournamentStage onlyFinal = score(stage, fin);
+        assertThat(onlyFinal.finished()).isFalse();
+        assertThat(onlyFinal.placements(results)).isEmpty();
+        TournamentStage both = score(onlyFinal, third);
+        assertThat(both.finished()).isTrue();
+
+        // Changing a semifinal drops the third place game and the final while both have no score.
+        assertThat(stage.openForScore(semifinals.getFirst().number(), NOW).fixtures())
+                .noneMatch(f -> f.round() == StageRound.THIRD_PLACE || f.round() == StageRound.FINAL);
+        assertThat(onlyFinal.openForScore(third.number(), NOW)).isEqualTo(onlyFinal);
+        assertThatThrownBy(() -> both.openForScore(semifinals.getFirst().number(), NOW))
+                .hasMessage("STAGE_LATER_ROUND_SCORED");
+    }
+
+    @Test
+    void finalDrawnBeforeTheThirdPlaceGameExistedKeepsBothSemifinalLosersAsSemifinalists() {
+        TournamentStage stage = scoreAll(stage(16)).advanced(results, NOW);
+        stage = scoreAll(stage).advanced(results, NOW);
+        StageFixture fin = knockout(stage, StageRound.FINAL).getFirst();
+        List<StageFixture> legacy = new ArrayList<>(stage.fixtures().stream()
+                .filter(f -> f.round() != StageRound.THIRD_PLACE).toList());
+        TournamentStage old = new TournamentStage(stage.id(), stage.leagueId(), stage.seasonId(), stage.date(),
+                stage.format(), stage.entrants(), stage.pairs(), legacy, stage.createdBy(), stage.createdAt(),
+                stage.updatedAt(), stage.version());
+
+        TournamentStage finished = score(old, fin);
+
+        assertThat(finished.finished()).isTrue();
+        assertThat(finished.placements(results).values().stream().filter(p -> p == Placement.SEMIFINAL)).hasSize(2);
+    }
+
+    @Test
+    void roundOf16WithFiveGroupsLetsTheBestSixSeedsWaitInTheQuarterfinals() {
+        TournamentStage stage = scoreAll(stage(34)).advanced(results, NOW);
+
+        List<StageFixture> roundOf16 = knockout(stage, StageRound.ROUND_OF_16);
+        assertThat(roundOf16).hasSize(2);
+        Set<Integer> playing = roundOf16.stream().flatMap(f -> IntStream.of(f.pairA(), f.pairB()).boxed())
+                .collect(Collectors.toSet());
+        Map<Integer, List<GroupStanding>> standings = stage.standings(results);
+        Set<Integer> qualified = standings.values().stream()
+                .flatMap(g -> Stream.of(g.get(0).pair(), g.get(1).pair())).collect(Collectors.toSet());
+        assertThat(qualified).containsAll(playing);
+
+        stage = scoreAll(stage).advanced(results, NOW);
+        List<StageFixture> quarterfinals = knockout(stage, StageRound.QUARTERFINAL);
+        assertThat(quarterfinals).hasSize(4);
+        Set<Integer> inQuarterfinals = quarterfinals.stream()
+                .flatMap(f -> IntStream.of(f.pairA(), f.pairB()).boxed()).collect(Collectors.toSet());
+        Set<Integer> waited = new HashSet<>(qualified);
+        waited.removeAll(playing);
+        assertThat(waited).hasSize(6);
+        assertThat(inQuarterfinals).containsAll(waited);
+    }
+
+    @Test
+    void roundOf16OfEightGroupsNeverPutsTwoPairsOfTheSameGroupTogether() {
+        TournamentStage stage = scoreAll(stage(64)).advanced(results, NOW);
+
+        List<StageFixture> roundOf16 = knockout(stage, StageRound.ROUND_OF_16);
+        assertThat(roundOf16).hasSize(8);
+        TournamentStage drawn = stage;
+        assertThat(roundOf16).allSatisfy(f ->
+                assertThat(drawn.pair(f.pairA()).group()).isNotEqualTo(drawn.pair(f.pairB()).group()));
+        assertThat(roundOf16.stream().flatMap(f -> IntStream.of(f.pairA(), f.pairB()).boxed()).distinct())
+                .hasSize(16);
+    }
+
+    @Test
+    void groupGamesKnowTheirRoundInsideTheGroup() {
+        TournamentStage four = stage(8);
+        assertThat(four.fixtures()).extracting(four::groupRound).containsExactly(1, 1, 2, 2, 3, 3);
+
+        TournamentStage five = stage(10);
+        assertThat(five.fixtures()).extracting(five::groupRound).containsExactly(1, 1, 2, 2, 3, 3, 4, 4, 5, 5);
+
+        TournamentStage threes = stage(18); // three groups of three: one game per group and round
+        assertThat(threes.fixtures()).extracting(threes::groupRound).containsExactly(1, 1, 1, 2, 2, 2, 3, 3, 3);
+        assertThat(threes.fixtures()).extracting(StageFixture::group).containsExactly(1, 2, 3, 1, 2, 3, 1, 2, 3);
+
+        TournamentStage knockout = scoreAll(stage(8)).advanced(results, NOW);
+        assertThat(knockout.groupRound(knockout.fixtures().getLast())).isNull();
     }
 
     @Test

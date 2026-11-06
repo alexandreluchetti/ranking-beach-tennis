@@ -42,7 +42,7 @@ public class SeasonEntity {
     @Column(name = "ranking_type", nullable = false)
     private RankingType rankingType;
 
-    /** Champion, runner-up, semifinal, quarterfinal, group stage; daily tournaments only. */
+    /** Champion, runner-up, third, fourth, quarterfinal, round of 16, group stage; daily tournaments only. */
     @JdbcTypeCode(SqlTypes.ARRAY)
     @Column(name = "placement_points")
     private Integer[] placementPoints;

@@ -18,7 +18,8 @@ import java.util.UUID;
  * A stage of a daily tournament (D-027) with its players, pairs, group standings and games.
  *
  * @param knockoutDrawn  the groups are closed: group scores change only after reopening them
- * @param finished       the final has a score; every pair has its {@code placement}
+ * @param finished       the final and the third place game have a score; every pair has its
+ *                       {@code placement}
  * @param canEnterScores whether the caller may enter the score of a game without one (D-029)
  * @param canAdminister  whether the caller may draw again, correct or clear scores, reopen the
  *                       groups or delete the stage
@@ -63,11 +64,12 @@ public record StageResponse(
     /**
      * Pair A plays as team A.
      *
-     * @param group null for knockout games
-     * @param score null while the game has no score
+     * @param group      null for knockout games
+     * @param groupRound round of a group game inside its group, from 1; null for knockout games
+     * @param score      null while the game has no score
      */
-    public record FixtureResponse(int number, StageRound round, Integer group, int pairA, int pairB,
-                                  ScoreResponse score) {
+    public record FixtureResponse(int number, StageRound round, Integer group, Integer groupRound, int pairA,
+                                  int pairB, ScoreResponse score) {
     }
 
     /** @param matchVersion send it back as {@code expectedMatchVersion} when correcting */
@@ -102,7 +104,8 @@ public record StageResponse(
 
     private static FixtureResponse fixture(StageFixture fixture, StageView view) {
         MatchDetails details = view.matches().get(fixture.number());
-        return new FixtureResponse(fixture.number(), fixture.round(), fixture.group(), fixture.pairA(),
-                fixture.pairB(), details == null ? null : ScoreResponse.from(details));
+        return new FixtureResponse(fixture.number(), fixture.round(), fixture.group(),
+                view.stage().groupRound(fixture), fixture.pairA(), fixture.pairB(),
+                details == null ? null : ScoreResponse.from(details));
     }
 }

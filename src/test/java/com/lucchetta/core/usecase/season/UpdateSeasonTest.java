@@ -231,7 +231,7 @@ class UpdateSeasonTest {
     void plannedDailyTournamentCanChangeOnlyItsTable() {
         Season planned = storedSeason(seasons, "Verão", TODAY.plusDays(30), TODAY.plusDays(90));
         execute(ADMIN, planned.id(), ranking(RankingType.DAILY_TOURNAMENT, null));
-        PlacementPoints table = new PlacementPoints(80, 60, 40, 20, 10);
+        PlacementPoints table = new PlacementPoints(80, 60, 40, 30, 20, 15, 10);
 
         SeasonView view = execute(ADMIN, planned.id(), ranking(null, table));
 
