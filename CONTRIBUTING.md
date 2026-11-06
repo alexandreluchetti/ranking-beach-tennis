@@ -61,26 +61,20 @@ Work branch names are lowercase kebab-case in English, e.g. `feat/player-deactiv
    git push origin vX.Y.Z
    ```
 
-6. `dev` is synced with `main` automatically: after every merge into `main`, the
-   `sync-dev-with-main` workflow (`.github/workflows/sync-dev-with-main.yml`) opens a pull
-   request from `main` into `dev` and merges it (merge commit; no content changes). Afterwards
-   `git log origin/dev..origin/main` must be empty; then update your local `dev`:
-
-   ```bash
-   git switch dev
-   git pull
-   ```
-
-   If the workflow fails, sync by hand:
+6. Sync `dev` with `main` by hand after every merge into `main` (merge commit; no content
+   changes), then check that `git log origin/dev..origin/main` is empty and update your local
+   `dev`:
 
    ```bash
    gh pr create --base dev --head main --title "Sync dev with main" --body "Sync after release."
    gh pr merge --merge <number>
+   git switch dev
+   git pull
    ```
 
-Never commit directly to `dev` or `main`. `main` only accepts pull requests from `dev`: the
-`source-branch-is-dev` check (`.github/workflows/main-only-from-dev.yml`) fails for any other
-source branch. The server only runs `main` (or a release tag), never `dev` or a work branch.
+Never commit directly to `dev` or `main`. `main` only accepts pull requests from `dev`: no check
+enforces it any more, so confirm the source branch before merging a pull request into `main`.
+The server only runs `main` (or a release tag), never `dev` or a work branch.
 
 ## Repository settings (GitHub)
 
@@ -89,9 +83,11 @@ Branch protection needs a public repository or GitHub Pro.
 - Ruleset `protected-branches`, active, targets `main` (default branch) and `dev` (pattern
   `dev`): restrict deletions, block force pushes, require a pull request before merging with
   0 approvals (nobody can approve their own pull request).
-- Ruleset `main-only-from-dev`, active, target `main` (default branch): require the status
-  check `source-branch-is-dev`. The check can be selected only after it has run once, in a
-  `dev` → `main` pull request.
+- Ruleset `main-only-from-dev`, active, target `main` (default branch): restrict deletions and
+  block force pushes. Its required status check `source-branch-is-dev` was removed on
+  2026-11-06, when the account's GitHub Actions were locked by a billing issue.
 - "Automatically delete head branches" on, so merged work branches are removed from GitHub.
-- Settings → Actions → General → Workflow permissions: "Allow GitHub Actions to create and
-  approve pull requests" on, required by `sync-dev-with-main`.
+- GitHub Actions: the workflows `main-only-from-dev` and `sync-dev-with-main` are disabled
+  (`gh workflow enable <file>` turns them back on). If they are enabled again, `sync-dev-with-main`
+  needs Settings → Actions → General → Workflow permissions: "Allow GitHub Actions to create and
+  approve pull requests".
