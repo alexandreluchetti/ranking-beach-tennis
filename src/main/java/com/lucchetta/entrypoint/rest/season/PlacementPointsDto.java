@@ -3,12 +3,13 @@ package com.lucchetta.entrypoint.rest.season;
 import com.lucchetta.core.domain.PlacementPoints;
 import jakarta.validation.constraints.NotNull;
 
-/** Points per placement in a daily tournament stage (D-028). */
-public record PlacementPointsDto(@NotNull Integer champion, @NotNull Integer runnerUp, @NotNull Integer semifinal,
-                                 @NotNull Integer quarterfinal, @NotNull Integer groupStage) {
+/** Points per placement in a daily tournament stage (D-028, D-030). */
+public record PlacementPointsDto(@NotNull Integer champion, @NotNull Integer runnerUp, @NotNull Integer thirdPlace,
+                                 @NotNull Integer fourthPlace, @NotNull Integer quarterfinal,
+                                 @NotNull Integer roundOf16, @NotNull Integer groupStage) {
 
     public PlacementPoints toDomain() {
-        return new PlacementPoints(champion, runnerUp, semifinal, quarterfinal, groupStage);
+        return new PlacementPoints(champion, runnerUp, thirdPlace, fourthPlace, quarterfinal, roundOf16, groupStage);
     }
 
     static PlacementPoints toDomain(PlacementPointsDto dto) {
@@ -17,6 +18,7 @@ public record PlacementPointsDto(@NotNull Integer champion, @NotNull Integer run
 
     static PlacementPointsDto from(PlacementPoints points) {
         return points == null ? null : new PlacementPointsDto(points.champion(), points.runnerUp(),
-                points.semifinal(), points.quarterfinal(), points.groupStage());
+                points.thirdPlace(), points.fourthPlace(), points.quarterfinal(), points.roundOf16(),
+                points.groupStage());
     }
 }

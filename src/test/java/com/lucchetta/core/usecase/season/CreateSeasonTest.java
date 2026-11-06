@@ -154,12 +154,12 @@ class CreateSeasonTest {
                 RankingType.DAILY_TOURNAMENT, null));
 
         assertThat(view.season().rankingType()).isEqualTo(RankingType.DAILY_TOURNAMENT);
-        assertThat(view.season().placementPoints()).isEqualTo(new PlacementPoints(100, 70, 50, 35, 20));
+        assertThat(view.season().placementPoints()).isEqualTo(new PlacementPoints(100, 70, 55, 45, 35, 25, 20));
     }
 
     @Test
     void dailyTournamentKeepsTheChosenTable() {
-        PlacementPoints table = new PlacementPoints(50, 30, 20, 10, 5);
+        PlacementPoints table = new PlacementPoints(50, 30, 20, 15, 10, 7, 5);
 
         SeasonView view = execute(ADMIN, new CreateSeason.Command("Primavera", TODAY, TODAY.plusDays(60), null,
                 RankingType.DAILY_TOURNAMENT, table));

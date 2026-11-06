@@ -230,8 +230,8 @@ published; then they are removed.
 ### D-027 — Stage of a daily tournament (type B)
 - On a playing day the app asks the league administrator whether there will be games. If so, they
   mark who is present: league members from the list, anyone else as a guest by name (D-004).
-- 8 to 32 players (members and guests). With an odd number, the administrator adds a guest or
-  someone sits out; the app warns before the draw.
+- 8 to 64 players (members and guests; up to 32 until D-030). With an odd number, the
+  administrator adds a guest or someone sits out; the app warns before the draw.
 - The server draws fixed pairs for the whole stage and splits them into groups; the draw is stored
   and may be redone until the first score is entered.
 - Groups of 3 or 4 pairs (a single group of 5 when there are 5 pairs), round robin; the first two
@@ -243,6 +243,9 @@ published; then they are removed.
   | 6–8 | 2 | 4 | semifinals, final |
   | 9–12 | 3 | 6 | quarterfinals; the two best group winners go straight to the semifinals |
   | 13–16 | 4 | 8 | quarterfinals, semifinals, final |
+  | 17–32 | 5–8 | 10–16 | round of 16 (D-030), quarterfinals, semifinals, final |
+
+  Since D-030, every knockout with semifinals also has a third place game.
 
 - The administrator chooses the match format (D-002, standard or short) of each stage.
 - The knockout is drawn only when every group match has a score. Correcting a group match after
@@ -250,8 +253,9 @@ published; then they are removed.
 
 ### D-028 — Points and ranking of a daily tournament (type B)
 - Each player gets the points of their final placement in the stage. Default table, editable when
-  creating the season (locked once it starts, D-026): champion 100, runner-up 70, semifinal 50,
-  quarterfinal 35, group stage 20.
+  creating the season (locked once it starts, D-026): champion 100, runner-up 70, third 55,
+  fourth 45, quarterfinal 35, round of 16 25, group stage 20 (third, fourth and round of 16 since
+  D-030; until then a single semifinal value of 50).
 - The season ranking is the sum of the stages. Tie-breaks: points, titles, finals, game
   difference.
 - Guests play and fill a place but get no points and are never ranked (D-004); the partner of a
@@ -262,6 +266,19 @@ published; then they are removed.
   (`MEMBERS`, the default and the setting of every existing league) or **administrators only**
   (`ADMINS`). It applies to every match of the league; corrections and voids stay with the
   administrators (D-018).
+
+### D-030 — Third place game and round of 16 (type B)
+- Whenever a stage has semifinals, their losers play for third place; the game is drawn together
+  with the final. Placements third and fourth replace the shared semifinal placement, with their
+  own points in the season table (default 55 and 45). Third place is not a final in the
+  tie-breaks (D-028). A stage is finished only when the final and the third place game have a
+  score.
+- Up to 64 players. From 17 to 32 pairs: five to eight groups of 3 or 4 pairs, the first two of
+  each group qualify and the knockout starts with a round of 16, with its own points in the
+  season table (default 25).
+- Seasons that already had a table keep their points: third and fourth take its semifinal value,
+  the round of 16 its quarterfinal value.
+- The app shows the group games by round inside each group (no rule change).
 
 ## Technical defaults (easy to change)
 
@@ -341,6 +358,18 @@ published; then they are removed.
     groups A1×B2 and B1×A2; three groups (winners ranked W1–W3, runners-up R1–R3 of the same
     groups) W3×R2 and R1×R3, then W1 × winner of the first and W2 × winner of the second; four
     groups A1×B2, C1×D2, B1×A2, D1×C2. Two pairs of the same group meet again only in the final.
+  - Five to eight groups (D-030): seeds are the group winners, then the runners-up, each ranked
+    across the groups like the three-group winners; they go into a standard bracket of 16 (1×16,
+    8×9, 5×12, 4×13, 6×11, 3×14, 7×10, 2×15, in that order). A seed whose opponent would be
+    beyond the qualified pairs waits in the quarterfinals (6, 4 or 2 seeds with five, six or
+    seven groups). When a round of 16 game would put two pairs of the same group together, its
+    lower seed is swapped with the lower seed of another game.
+  - The third place game is numbered just before the final. When a final was drawn before the
+    third place game existed, both semifinal losers keep the placement `SEMIFINAL`, worth the
+    fourth place points; changing a semifinal score draws the third place game and the final
+    again.
+  - The group round of a game is its order inside the group divided by the games per round
+    (half the pairs of the group, rounded down), from 1.
   - Each game score is a match of the league linked to the stage: it shows in the history,
     counts for statistics and the stage game difference, notifies its players and the league
     administrators like any match, and gives no points per match (D-028). Pair A plays as team A.
@@ -354,11 +383,12 @@ published; then they are removed.
   - The draw may be redone (with new players or format) and the stage deleted only while no score
     was ever entered for it.
 - Daily tournament ranking (D-028):
-  - A stage gives placement points once its final has a score; clearing the final takes them
-    away. The table in force is the season's (locked once it starts).
+  - A stage gives placement points once its final and third place game have a score; clearing
+    either takes them away. The table in force is the season's (locked once it starts).
   - After points, titles, finals and game difference, the remaining criteria of D-013 apply:
-    fewer matches played, more games won, reached the current points first (the final of the
-    stage that gave the latest points), joined the league first, name, registration.
+    fewer matches played, more games won, reached the current points first (the last of the final
+    and the third place game of the stage that gave the latest points), joined the league first,
+    name, registration.
   - Ranking members are the same as for points per match (D-021); a member who missed every stage
     is listed with zero. Matches, wins and games in the ranking come from the stage matches.
   - Career statistics of a profile keep their points from points-per-match seasons only; the
