@@ -20,10 +20,10 @@ PostgreSQL, Flyway. Mapa de endpoints: [`docs/api.md`](../docs/api.md). O app Fl
   - **Nunca commitar direto em `dev` ou `main`.** Toda mudança nasce de uma branch
     `feat/`, `fix/`, `refactor/` ou `chore/<nome-em-kebab-case>` criada a partir da `dev`
     atualizada, vai para a `dev` por pull request e é apagada depois do merge.
-  - A `main` só recebe pull request vindo da `dev` (check `source-branch-is-dev`).
-  - Depois de todo merge na `main`, a `dev` é sincronizada automaticamente pelo workflow
-    `sync-dev-with-main` (PR `main` → `dev` com merge commit). Confira que
-    `git log origin/dev..origin/main` ficou vazio; se o workflow falhar, faça o PR à mão.
+  - A `main` só recebe pull request vindo da `dev`. Nenhum check garante isso desde que o
+    GitHub Actions foi desativado (2026-11-06): confira a branch de origem antes do merge.
+  - Depois de todo merge na `main`, sincronize a `dev` à mão (PR `main` → `dev` com merge
+    commit) e confira que `git log origin/dev..origin/main` ficou vazio.
   - Antes de commitar, confira a branch atual (`git branch --show-current`); se estiver em
     `dev` ou `main`, crie a branch de trabalho primeiro.
 - Idiomas:
