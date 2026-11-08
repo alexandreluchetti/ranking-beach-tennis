@@ -137,7 +137,9 @@ public class MatchAdministration {
         record Result(Outcome outcome, List<Notification> notifications) {
         }
         Result result = transactionRunner.inTransaction(() -> {
+            // Only the league where the match was registered changes it, even when it counts elsewhere (D-031).
             Match current = matchRepository.findById(matchId)
+                    .filter(match -> match.leagueId().equals(leagueId))
                     .orElseThrow(() -> new NotFoundException("MATCH_NOT_FOUND"));
             if (current.stageMatch()) {
                 // Its score is changed through the stage, which keeps the knockout consistent (D-027).

@@ -3,6 +3,7 @@ package com.lucchetta.dataprovider.database.league;
 import com.lucchetta.core.domain.league.LeagueMember;
 import com.lucchetta.core.domain.league.LeagueRole;
 import com.lucchetta.core.port.LeagueMemberRepository;
+import com.lucchetta.dataprovider.cache.CaffeineLeagueMatchCache;
 import org.springframework.jdbc.core.simple.JdbcClient;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
@@ -24,9 +25,11 @@ public class LeagueMemberRepositoryAdapter implements LeagueMemberRepository {
     private static final String SELECT_MEMBER = "select league_id, player_id, role, joined_at from league_member";
 
     private final JdbcClient jdbcClient;
+    private final CaffeineLeagueMatchCache leagueMatchCache;
 
-    public LeagueMemberRepositoryAdapter(JdbcClient jdbcClient) {
+    public LeagueMemberRepositoryAdapter(JdbcClient jdbcClient, CaffeineLeagueMatchCache leagueMatchCache) {
         this.jdbcClient = jdbcClient;
+        this.leagueMatchCache = leagueMatchCache;
     }
 
     @Override
@@ -105,6 +108,8 @@ public class LeagueMemberRepositoryAdapter implements LeagueMemberRepository {
                 .param("role", member.role().name())
                 .param("joinedAt", OffsetDateTime.ofInstant(member.joinedAt(), ZoneOffset.UTC))
                 .update();
+        // Matches of other leagues count here only while all their players are members (D-031).
+        leagueMatchCache.evict(member.leagueId());
     }
 
     @Override
@@ -124,6 +129,7 @@ public class LeagueMemberRepositoryAdapter implements LeagueMemberRepository {
                 .param("leagueId", leagueId)
                 .param("playerId", playerId)
                 .update();
+        leagueMatchCache.evict(leagueId);
     }
 
     private static LeagueMember mapRow(ResultSet rs, int rowNum) throws SQLException {

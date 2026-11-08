@@ -6,6 +6,7 @@ import com.lucchetta.core.exception.ConflictException;
 import com.lucchetta.core.port.MatchRepository;
 
 import java.time.Instant;
+import java.util.Collection;
 import java.util.Comparator;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -48,6 +49,18 @@ public class InMemoryMatches implements MatchRepository {
                 match.version() + 1, match.stageId());
         matches.put(saved.id(), saved);
         return saved;
+    }
+
+    @Override
+    public List<Match> findSharedCandidates(UUID excludedLeagueId, Collection<UUID> playerIds, Instant from,
+                                            Instant to) {
+        return matches.values().stream()
+                .filter(m -> !m.leagueId().equals(excludedLeagueId) && !m.stageMatch() && !m.hasGuest())
+                .filter(m -> playerIds.containsAll(m.playerIds()))
+                .filter(m -> from == null || !m.playedAt().isBefore(from))
+                .filter(m -> to == null || m.playedAt().isBefore(to))
+                .sorted(Comparator.comparing(Match::playedAt).reversed())
+                .toList();
     }
 
     @Override

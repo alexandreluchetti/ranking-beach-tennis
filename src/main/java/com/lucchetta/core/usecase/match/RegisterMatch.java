@@ -23,6 +23,7 @@ import java.time.LocalDate;
 import java.util.List;
 import java.util.Objects;
 import java.util.UUID;
+import java.util.stream.Stream;
 
 /**
  * Registers a finished match in a league. Any member of the league may do it (decision D-021),
@@ -33,7 +34,8 @@ import java.util.UUID;
  *     anything. Different content under the same id is a conflict, unless the administrator has
  *     changed the stored match meanwhile (then the resend just returns its current state).</li>
  *     <li>Matches more than 10 minutes in the future are rejected (D-011).</li>
- *     <li>A same-day match with the same teams requires explicit confirmation (D-012).</li>
+ *     <li>A same-day match with the same teams requires explicit confirmation (D-012), also
+ *     when it was registered in another league with the same four players (D-031).</li>
  * </ul>
  */
 public class RegisterMatch {
@@ -143,7 +145,14 @@ public class RegisterMatch {
         LocalDate day = match.playedOn();
         Instant from = day.atStartOfDay(BusinessCalendar.ZONE).toInstant();
         Instant to = day.plusDays(1).atStartOfDay(BusinessCalendar.ZONE).toInstant();
-        List<UUID> duplicates = matchRepository.findValidPlayedBetween(match.leagueId(), from, to).stream()
+        // The same game registered in another league would count twice where it is shared (D-031).
+        List<Match> otherLeagues = match.hasGuest() ? List.of()
+                : matchRepository.findSharedCandidates(match.leagueId(), match.playerIds(), from, to).stream()
+                .filter(other -> other.status() == MatchStatus.VALID)
+                .toList();
+        List<UUID> duplicates = Stream.concat(
+                        matchRepository.findValidPlayedBetween(match.leagueId(), from, to).stream(),
+                        otherLeagues.stream())
                 .filter(match::hasSameTeamsAs)
                 .map(Match::id)
                 .toList();

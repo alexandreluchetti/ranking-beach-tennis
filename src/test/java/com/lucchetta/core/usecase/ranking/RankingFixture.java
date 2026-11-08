@@ -20,6 +20,7 @@ import com.lucchetta.core.support.TestLeague;
 import com.lucchetta.core.usecase.league.LeagueAccess;
 import com.lucchetta.core.usecase.match.LeagueMatches;
 import com.lucchetta.core.usecase.match.MatchDetailsAssembler;
+import com.lucchetta.core.usecase.match.SharedMatches;
 import com.lucchetta.core.usecase.player.GetOrCreateCurrentPlayer;
 import com.lucchetta.core.usecase.season.QuerySeasons;
 
@@ -51,7 +52,9 @@ public class RankingFixture {
     public final QuerySeasons querySeasons = new QuerySeasons(access, seasons, CLOCK);
     public final MatchDetailsAssembler assembler = new MatchDetailsAssembler(seasons, players,
             new RankingEligibilityPolicy(), new GamesPlusWinBonusScoringPolicy());
-    public final LeagueMatches leagueMatches = new LeagueMatches(matches, assembler, LeagueMatchCache.NONE);
+    public final SharedMatches sharedMatches = new SharedMatches(league.leagues, league.leagues, matches, assembler);
+    public final LeagueMatches leagueMatches = new LeagueMatches(matches, assembler, sharedMatches,
+            LeagueMatchCache.NONE);
 
     public final Player ana = players.add("Ana");
     public final Player beto = players.add("Beto");

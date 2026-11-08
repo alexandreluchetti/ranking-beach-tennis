@@ -60,6 +60,33 @@ public class MatchRepositoryAdapter implements MatchRepository {
 
     @Override
     @Transactional(readOnly = true)
+    public List<Match> findSharedCandidates(UUID excludedLeagueId, Collection<UUID> playerIds, Instant from,
+                                            Instant to) {
+        if (playerIds.isEmpty()) {
+            return List.of();
+        }
+        StringBuilder sql = new StringBuilder(SELECT_MATCH).append("""
+                 where league_id <> :leagueId and stage_id is null
+                   and not exists (select 1 from match_participant mp where mp.match_id = match.id
+                                   and (mp.player_id is null or mp.player_id not in (:playerIds)))
+                """);
+        Map<String, Object> params = new HashMap<>();
+        params.put("leagueId", excludedLeagueId);
+        params.put("playerIds", playerIds);
+        if (from != null) {
+            sql.append(" and played_at >= :from");
+            params.put("from", utc(from));
+        }
+        if (to != null) {
+            sql.append(" and played_at < :to");
+            params.put("to", utc(to));
+        }
+        sql.append(" order by played_at desc, registered_at desc");
+        return assemble(jdbcClient.sql(sql.toString()).params(params).query(MatchRepositoryAdapter::mapRow).list());
+    }
+
+    @Override
+    @Transactional(readOnly = true)
     public List<Match> findByStage(UUID stageId) {
         return assemble(jdbcClient.sql(SELECT_MATCH + " where stage_id = :stageId order by played_at")
                 .param("stageId", stageId)
@@ -135,7 +162,7 @@ public class MatchRepositoryAdapter implements MatchRepository {
             return false;
         }
         insertParticipants(match);
-        leagueMatchCache.evict(match.leagueId());
+        evictLeaguesSeeing(match);
         return true;
     }
 
@@ -169,10 +196,36 @@ public class MatchRepositoryAdapter implements MatchRepository {
         if (updated == 0) {
             throw new ConflictException("MATCH_MODIFIED");
         }
+        // A correction may remove a player: the leagues of the previous players may stop seeing it.
+        jdbcClient.sql("""
+                        select distinct lm.league_id from league_member lm
+                        join match_participant mp on mp.player_id = lm.player_id
+                        where mp.match_id = :id
+                        """)
+                .param("id", match.id())
+                .query(UUID.class)
+                .list()
+                .forEach(leagueMatchCache::evict);
         jdbcClient.sql("delete from match_participant where match_id = :id").param("id", match.id()).update();
         insertParticipants(match);
-        leagueMatchCache.evict(match.leagueId());
+        evictLeaguesSeeing(match);
         return findById(match.id()).orElseThrow();
+    }
+
+    /**
+     * The match's league and every league one of its players belongs to, where it may count too
+     * (D-031).
+     */
+    private void evictLeaguesSeeing(Match match) {
+        leagueMatchCache.evict(match.leagueId());
+        if (match.playerIds().isEmpty()) {
+            return;
+        }
+        jdbcClient.sql("select distinct league_id from league_member where player_id in (:playerIds)")
+                .param("playerIds", match.playerIds())
+                .query(UUID.class)
+                .list()
+                .forEach(leagueMatchCache::evict);
     }
 
     private void insertParticipants(Match match) {
