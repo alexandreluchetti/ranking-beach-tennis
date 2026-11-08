@@ -3,6 +3,7 @@ package com.lucchetta.configuration;
 import com.lucchetta.core.port.DeviceTokenRepository;
 import com.lucchetta.core.port.LeagueMatchCache;
 import com.lucchetta.core.port.LeagueMemberRepository;
+import com.lucchetta.core.port.LeagueRepository;
 import com.lucchetta.core.port.MatchAuditLog;
 import com.lucchetta.core.port.MatchRepository;
 import com.lucchetta.core.port.NotificationRepository;
@@ -22,6 +23,7 @@ import com.lucchetta.core.usecase.match.MatchValidator;
 import com.lucchetta.core.usecase.match.QueryMatch;
 import com.lucchetta.core.usecase.match.RegisterMatch;
 import com.lucchetta.core.usecase.match.SearchMatches;
+import com.lucchetta.core.usecase.match.SharedMatches;
 import com.lucchetta.core.usecase.match.admin.MatchAdministration;
 import com.lucchetta.core.usecase.notification.MatchNotificationComposer;
 import com.lucchetta.core.usecase.notification.MatchNotifier;
@@ -152,9 +154,15 @@ public class UseCaseConfiguration {
     }
 
     @Bean
+    SharedMatches sharedMatches(LeagueRepository leagueRepository, LeagueMemberRepository leagueMemberRepository,
+                                MatchRepository matchRepository, MatchDetailsAssembler matchDetailsAssembler) {
+        return new SharedMatches(leagueRepository, leagueMemberRepository, matchRepository, matchDetailsAssembler);
+    }
+
+    @Bean
     QueryMatch queryMatch(LeagueAccess leagueAccess, MatchRepository matchRepository, MatchAuditLog matchAuditLog,
-                          MatchDetailsAssembler matchDetailsAssembler) {
-        return new QueryMatch(leagueAccess, matchRepository, matchAuditLog, matchDetailsAssembler);
+                          MatchDetailsAssembler matchDetailsAssembler, SharedMatches sharedMatches) {
+        return new QueryMatch(leagueAccess, matchRepository, matchAuditLog, matchDetailsAssembler, sharedMatches);
     }
 
     @Bean
@@ -173,8 +181,8 @@ public class UseCaseConfiguration {
 
     @Bean
     SearchMatches searchMatches(LeagueAccess leagueAccess, MatchRepository matchRepository, QuerySeasons querySeasons,
-                                MatchDetailsAssembler matchDetailsAssembler) {
-        return new SearchMatches(leagueAccess, matchRepository, querySeasons, matchDetailsAssembler);
+                                MatchDetailsAssembler matchDetailsAssembler, SharedMatches sharedMatches) {
+        return new SearchMatches(leagueAccess, matchRepository, querySeasons, matchDetailsAssembler, sharedMatches);
     }
 
     @Bean
@@ -185,8 +193,8 @@ public class UseCaseConfiguration {
 
     @Bean
     LeagueMatches leagueMatches(MatchRepository matchRepository, MatchDetailsAssembler matchDetailsAssembler,
-                                LeagueMatchCache leagueMatchCache) {
-        return new LeagueMatches(matchRepository, matchDetailsAssembler, leagueMatchCache);
+                                SharedMatches sharedMatches, LeagueMatchCache leagueMatchCache) {
+        return new LeagueMatches(matchRepository, matchDetailsAssembler, sharedMatches, leagueMatchCache);
     }
 
     @Bean

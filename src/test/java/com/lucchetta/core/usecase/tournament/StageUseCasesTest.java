@@ -35,6 +35,7 @@ import com.lucchetta.core.usecase.match.LeagueMatches;
 import com.lucchetta.core.usecase.match.MatchDetails;
 import com.lucchetta.core.usecase.match.MatchDetailsAssembler;
 import com.lucchetta.core.usecase.match.MatchValidator;
+import com.lucchetta.core.usecase.match.SharedMatches;
 import com.lucchetta.core.usecase.match.admin.MatchAdministration;
 import com.lucchetta.core.usecase.notification.MatchNotificationComposer;
 import com.lucchetta.core.usecase.notification.MatchNotifier;
@@ -353,12 +354,17 @@ class StageUseCasesTest {
 
     private GetSeasonRanking ranking() {
         return new GetSeasonRanking(access, new QuerySeasons(access, seasons, CLOCK), players, league.leagues,
-                new LeagueMatches(matches, assembler, LeagueMatchCache.NONE), stages);
+                leagueMatches(), stages);
     }
 
     private GetPlayerProfile profiles() {
         return new GetPlayerProfile(access, players, league.leagues, new QuerySeasons(access, seasons, CLOCK),
-                new LeagueMatches(matches, assembler, LeagueMatchCache.NONE), stages);
+                leagueMatches(), stages);
+    }
+
+    private LeagueMatches leagueMatches() {
+        return new LeagueMatches(matches, assembler,
+                new SharedMatches(league.leagues, league.leagues, matches, assembler), LeagueMatchCache.NONE);
     }
 
     private StageView open(LocalDate date) {

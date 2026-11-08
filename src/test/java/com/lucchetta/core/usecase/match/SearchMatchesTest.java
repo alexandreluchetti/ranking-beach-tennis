@@ -18,7 +18,7 @@ class SearchMatchesTest {
 
     private final RankingFixture world = new RankingFixture();
     private final SearchMatches useCase = new SearchMatches(world.access, world.matches, world.querySeasons,
-            world.assembler);
+            world.assembler, world.sharedMatches);
 
     private final Match pastSeason = world.match(LocalDate.of(2026, 9, 6), 6, 0);
     private final Match counted = world.match(LocalDate.of(2026, 10, 4), 6, 4);

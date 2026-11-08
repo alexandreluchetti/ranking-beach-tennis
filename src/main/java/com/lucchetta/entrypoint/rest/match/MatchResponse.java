@@ -16,11 +16,14 @@ import java.util.UUID;
  * A match as shown in the app. {@code status} (valid/voided) and {@code counted} (ranking
  * eligibility) are independent; {@code notCountedReason} explains a match that gives no points.
  *
+ * @param leagueId the league where the match was registered; another league than the one asked for
+ *                 when it counts there too (D-031), and then only that league may change it
  * @param stageId the daily tournament stage whose game this match is (D-027); its score is changed
  *                through the stage, not with the match correction and void endpoints
  */
 public record MatchResponse(
         UUID id,
+        UUID leagueId,
         OffsetDateTime playedAt,
         MatchFormat format,
         int teamAGames,
@@ -60,6 +63,7 @@ public record MatchResponse(
         Match match = details.match();
         return new MatchResponse(
                 match.id(),
+                match.leagueId(),
                 OffsetDateTime.ofInstant(match.playedAt(), BusinessCalendar.ZONE),
                 match.format(),
                 match.score().teamAGames(),

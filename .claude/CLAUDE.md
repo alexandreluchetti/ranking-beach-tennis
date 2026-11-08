@@ -65,6 +65,11 @@ Regras:
   `LeagueMatchCache` (Caffeine em `dataprovider/cache`). Os adapters que gravam partidas, temporadas
   e apelidos invalidam o cache depois do commit; uma escrita nova que mude o resultado de
   `MatchDetailsAssembler` precisa invalidá-lo também. Nos ITs, `cleanDatabase()` o esvazia.
+- Partidas compartilhadas (D-031): uma partida de pontos por partida sem convidados aparece também
+  nas outras ligas onde os 4 jogadores são membros (`SharedMatches`), avaliada com as temporadas da
+  liga que a recebe (`MatchDetailsAssembler.assembleIn`). Só a liga de origem corrige/anula. Por
+  isso o cache é invalidado também nas ligas dos jogadores da partida, ao mudar membros e ao
+  alterar a liga.
 - Endpoints sem liga (app antigo) respondem nos mesmos controllers com `leagueId` opcional e
   usam a liga "Beach Tennis Arena" (`DefaultLeague`), via `LeagueScope` (D-023).
 
@@ -168,3 +173,4 @@ Windows bloqueia o jar e `./mvnw verify` falha no repackage: pare-o ou rode em u
 - Ligas: `core/usecase/league` (`LeagueAccess`, `LeagueAdmission`, `LeagueMembership`, `JoinRequests`,
   `LeagueInvitations`, `InviteCodes`); fiação em `LeagueUseCaseConfiguration`.
 - Estatísticas globais do próprio usuário: `GetMyStatistics` (D-022).
+- Partidas compartilhadas entre ligas: `core/usecase/match/SharedMatches` (D-031).

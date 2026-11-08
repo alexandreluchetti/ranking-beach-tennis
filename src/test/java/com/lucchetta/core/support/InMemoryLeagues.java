@@ -90,8 +90,8 @@ public class InMemoryLeagues implements LeagueRepository, LeagueMemberRepository
             throw new ConflictException("LEAGUE_MODIFIED");
         }
         League saved = new League(league.id(), league.name(), league.description(), league.visibility(),
-                league.scoreEntry(), league.inviteCode(), league.createdBy(), league.createdAt(), league.updatedAt(),
-                league.archivedAt(), league.archivedBy(), league.version() + 1);
+                league.scoreEntry(), league.sharedMatches(), league.inviteCode(), league.createdBy(),
+                league.createdAt(), league.updatedAt(), league.archivedAt(), league.archivedBy(), league.version() + 1);
         leagues.put(saved.id(), saved);
         return saved;
     }

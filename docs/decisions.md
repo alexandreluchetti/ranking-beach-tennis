@@ -280,6 +280,24 @@ published; then they are removed.
   the round of 16 its quarterfinal value.
 - The app shows the group games by round inside each group (no rule change).
 
+### D-031 — Matches shared between leagues (points per match)
+- A match registered in one league also counts in another league when, without guests, its four
+  players are all **current** members of that league (whenever they joined) and, on its date,
+  that league has a points-per-match season (D-026) with that playing day (D-025). The same match
+  then appears in the ranking, history and profiles of both leagues, with that league's season
+  and the D-003 points; it is not copied (D-007). Global statistics count it once (D-022).
+- It applies to every match, also those already registered and those of closed seasons: points
+  are derived, so a closed season's final ranking may change. When a player leaves the league,
+  the matches shared because of them stop counting there.
+- Each league chooses whether it receives shared matches, when created and at any later time
+  (default: yes, also for every existing league).
+- Changes it continues to the league where the match was registered: only its administrators
+  correct or void it, and only its members and administrators are notified.
+- Registering a match warns about a possible duplicate (D-012) also when the same game, with the
+  same four players, was registered in another league on that day.
+- Games of a daily tournament stage are never shared, and a league never receives matches into a
+  daily tournament season.
+
 ## Technical defaults (easy to change)
 
 - Display name: 2–40 characters, whitespace normalized. Initial value: name from the login
