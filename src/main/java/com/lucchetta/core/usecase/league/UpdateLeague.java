@@ -12,18 +12,23 @@ import java.time.Clock;
 import java.util.UUID;
 
 /**
- * League administrators change the name, description, visibility or score entry (D-029) of a
- * league that is not archived.
+ * League administrators change the name, description, visibility, score entry (D-029) or shared
+ * matches (D-031) of a league that is not archived.
  */
 public class UpdateLeague {
 
     /**
      * Null fields are left unchanged; a blank description removes it.
      */
-    public record Command(String name, String description, LeagueVisibility visibility, ScoreEntry scoreEntry) {
+    public record Command(String name, String description, LeagueVisibility visibility, ScoreEntry scoreEntry,
+                          Boolean sharedMatches) {
 
         public Command(String name, String description, LeagueVisibility visibility) {
-            this(name, description, visibility, null);
+            this(name, description, visibility, null, null);
+        }
+
+        public Command(String name, String description, LeagueVisibility visibility, ScoreEntry scoreEntry) {
+            this(name, description, visibility, scoreEntry, null);
         }
     }
 
@@ -54,7 +59,9 @@ public class UpdateLeague {
                     command.description() == null ? current.description() : command.description(),
                     command.visibility() == null ? current.visibility() : command.visibility(),
                     command.scoreEntry() == null ? current.scoreEntry() : command.scoreEntry(),
-                    clock.instant());
+                    clock.instant())
+                    .withSharedMatches(command.sharedMatches() == null ? current.sharedMatches()
+                            : command.sharedMatches(), clock.instant());
             if (!changed.name().equalsIgnoreCase(current.name())
                     && leagueRepository.existsByName(changed.name(), current.id())) {
                 throw new ConflictException("LEAGUE_NAME_TAKEN");

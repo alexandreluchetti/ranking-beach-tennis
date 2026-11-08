@@ -5,6 +5,7 @@ import com.lucchetta.core.domain.league.LeagueVisibility;
 import com.lucchetta.core.domain.league.ScoreEntry;
 import com.lucchetta.core.exception.ConflictException;
 import com.lucchetta.core.port.LeagueRepository;
+import com.lucchetta.dataprovider.cache.CaffeineLeagueMatchCache;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.jdbc.core.simple.JdbcClient;
 import org.springframework.stereotype.Component;
@@ -27,15 +28,17 @@ public class LeagueRepositoryAdapter implements LeagueRepository {
 
     private static final String NAME_CONSTRAINT = "ux_league_name";
     private static final String SELECT_LEAGUE = """
-            select id, name, description, visibility, score_entry, invite_code, created_by, created_at, updated_at,
-                   archived_at, archived_by, version
+            select id, name, description, visibility, score_entry, shared_matches, invite_code, created_by,
+                   created_at, updated_at, archived_at, archived_by, version
             from league
             """;
 
     private final JdbcClient jdbcClient;
+    private final CaffeineLeagueMatchCache leagueMatchCache;
 
-    public LeagueRepositoryAdapter(JdbcClient jdbcClient) {
+    public LeagueRepositoryAdapter(JdbcClient jdbcClient, CaffeineLeagueMatchCache leagueMatchCache) {
         this.jdbcClient = jdbcClient;
+        this.leagueMatchCache = leagueMatchCache;
     }
 
     @Override
@@ -121,16 +124,17 @@ public class LeagueRepositoryAdapter implements LeagueRepository {
     @Transactional
     public League insert(League league) {
         translatingNameConflict(() -> jdbcClient.sql("""
-                        insert into league (id, name, description, visibility, score_entry, invite_code, created_by,
-                                            created_at, updated_at, archived_at, archived_by, version)
-                        values (:id, :name, :description, :visibility, :scoreEntry, :inviteCode, :createdBy, :createdAt,
-                                :updatedAt, :archivedAt, :archivedBy, 0)
+                        insert into league (id, name, description, visibility, score_entry, shared_matches, invite_code,
+                                            created_by, created_at, updated_at, archived_at, archived_by, version)
+                        values (:id, :name, :description, :visibility, :scoreEntry, :sharedMatches, :inviteCode,
+                                :createdBy, :createdAt, :updatedAt, :archivedAt, :archivedBy, 0)
                         """)
                 .param("id", league.id())
                 .param("name", league.name())
                 .param("description", league.description())
                 .param("visibility", league.visibility().name())
                 .param("scoreEntry", league.scoreEntry().name())
+                .param("sharedMatches", league.sharedMatches())
                 .param("inviteCode", league.inviteCode())
                 .param("createdBy", league.createdBy())
                 .param("createdAt", utc(league.createdAt()))
@@ -147,9 +151,9 @@ public class LeagueRepositoryAdapter implements LeagueRepository {
         int updated = translatingNameConflict(() -> jdbcClient.sql("""
                         update league
                         set name = :name, description = :description, visibility = :visibility,
-                            score_entry = :scoreEntry, invite_code = :inviteCode, updated_at = :updatedAt,
-                            archived_at = :archivedAt,
-                            archived_by = :archivedBy, version = version + 1
+                            score_entry = :scoreEntry, shared_matches = :sharedMatches, invite_code = :inviteCode,
+                            updated_at = :updatedAt, archived_at = :archivedAt, archived_by = :archivedBy,
+                            version = version + 1
                         where id = :id and version = :version
                         """)
                 .param("id", league.id())
@@ -158,6 +162,7 @@ public class LeagueRepositoryAdapter implements LeagueRepository {
                 .param("description", league.description())
                 .param("visibility", league.visibility().name())
                 .param("scoreEntry", league.scoreEntry().name())
+                .param("sharedMatches", league.sharedMatches())
                 .param("inviteCode", league.inviteCode())
                 .param("updatedAt", utc(league.updatedAt()))
                 .param("archivedAt", utc(league.archivedAt()))
@@ -166,6 +171,7 @@ public class LeagueRepositoryAdapter implements LeagueRepository {
         if (updated == 0) {
             throw new ConflictException("LEAGUE_MODIFIED");
         }
+        leagueMatchCache.evict(league.id()); // the shared matches setting (D-031)
         return findById(league.id()).orElseThrow();
     }
 
@@ -192,6 +198,7 @@ public class LeagueRepositoryAdapter implements LeagueRepository {
                 rs.getString("description"),
                 LeagueVisibility.valueOf(rs.getString("visibility")),
                 ScoreEntry.valueOf(rs.getString("score_entry")),
+                rs.getBoolean("shared_matches"),
                 rs.getString("invite_code"),
                 rs.getObject("created_by", UUID.class),
                 instant(rs, "created_at"),

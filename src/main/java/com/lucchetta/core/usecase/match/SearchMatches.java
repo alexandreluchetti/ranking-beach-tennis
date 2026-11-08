@@ -15,8 +15,8 @@ import java.util.Set;
 import java.util.UUID;
 
 /**
- * Match history of a league, most recent first, with combinable filters. League members only
- * (decision D-020).
+ * Match history of a league, most recent first, with combinable filters, including the matches of
+ * other leagues that count in it (D-031). League members only (decision D-020).
  */
 public class SearchMatches {
 
@@ -43,13 +43,15 @@ public class SearchMatches {
     private final MatchRepository matchRepository;
     private final QuerySeasons querySeasons;
     private final MatchDetailsAssembler assembler;
+    private final SharedMatches sharedMatches;
 
     public SearchMatches(LeagueAccess leagueAccess, MatchRepository matchRepository, QuerySeasons querySeasons,
-                         MatchDetailsAssembler assembler) {
+                         MatchDetailsAssembler assembler, SharedMatches sharedMatches) {
         this.leagueAccess = leagueAccess;
         this.matchRepository = matchRepository;
         this.querySeasons = querySeasons;
         this.assembler = assembler;
+        this.sharedMatches = sharedMatches;
     }
 
     public Page execute(AuthenticatedUser user, UUID leagueId, Criteria criteria) {
@@ -67,8 +69,10 @@ public class SearchMatches {
 
         // Outcome depends on derived eligibility, so it is filtered after assembling. The group's
         // volume (hundreds of matches per year) keeps this cheap.
-        List<MatchDetails> filtered = assembler.assembleAll(
-                        matchRepository.findPlayed(leagueId, startOf(from), endOf(to), criteria.playerId()))
+        List<MatchDetails> filtered = SharedMatches.merged(
+                        assembler.assembleAll(matchRepository.findPlayed(leagueId, startOf(from), endOf(to),
+                                criteria.playerId())),
+                        sharedMatches.into(leagueId, startOf(from), endOf(to), criteria.playerId()))
                 .stream()
                 .filter(d -> criteria.outcomes().contains(MatchOutcome.of(d)))
                 .toList();

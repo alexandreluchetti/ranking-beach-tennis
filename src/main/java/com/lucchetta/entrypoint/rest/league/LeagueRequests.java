@@ -10,14 +10,17 @@ public final class LeagueRequests {
     private LeagueRequests() {
     }
 
-    /** @param scoreEntry who records match scores (D-029); omitted means {@code MEMBERS} */
+    /**
+     * @param scoreEntry    who records match scores (D-029); omitted means {@code MEMBERS}
+     * @param sharedMatches whether matches of other leagues count here too (D-031); omitted means true
+     */
     public record CreateLeagueRequest(String name, String description, LeagueVisibility visibility,
-                                      ScoreEntry scoreEntry) {
+                                      ScoreEntry scoreEntry, Boolean sharedMatches) {
     }
 
     /** Null fields stay unchanged; an empty description removes it. */
     public record UpdateLeagueRequest(String name, String description, LeagueVisibility visibility,
-                                      ScoreEntry scoreEntry) {
+                                      ScoreEntry scoreEntry, Boolean sharedMatches) {
     }
 
     public record ChangeRoleRequest(LeagueRole role) {

@@ -330,6 +330,27 @@ class RegisterMatchTest {
                 .hasMessage("MATCH_ID_CONFLICT");
     }
 
+    /** The same game registered in another league with the same four players (D-031). */
+    @Test
+    void sameGameInAnotherLeagueIsAPossibleDuplicate() {
+        UUID otherLeague = UUID.randomUUID();
+        league.leagues.add(new League(otherLeague, "Outra Liga", null,
+                LeagueVisibility.PUBLIC, null, null, NOW, NOW, null, null, 0));
+        for (Player player : List.of(ana, beto, caio, dani)) {
+            league.leagues.insert(new LeagueMember(otherLeague, player.id(), LeagueRole.MEMBER, NOW));
+        }
+        UUID elsewhere = useCase.execute(caller, otherLeague, command(UUID.randomUUID(), sixFour(), regularTeams()))
+                .details().match().id();
+
+        assertThatThrownBy(() -> register(caller, command(UUID.randomUUID(), sixFour(), regularTeams())))
+                .isInstanceOfSatisfying(PossibleDuplicateMatchException.class,
+                        e -> assertThat(e.existingMatchIds()).containsExactly(elsewhere));
+        List<Participant> withGuest = List.of(
+                Participant.player(Team.A, 1, ana.id()), Participant.player(Team.A, 2, beto.id()),
+                Participant.player(Team.B, 1, caio.id()), Participant.guest(Team.B, 2, null));
+        assertThat(register(caller, command(UUID.randomUUID(), sixFour(), withGuest)).created()).isTrue();
+    }
+
     @Test
     void onlyAdministratorsRecordScoresWhenTheLeagueSaysSo() {
         Player eva = players.add("Eva");

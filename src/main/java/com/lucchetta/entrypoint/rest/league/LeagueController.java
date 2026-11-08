@@ -73,7 +73,7 @@ public class LeagueController {
     public LeagueResponse create(@RequestBody CreateLeagueRequest request) {
         return LeagueResponse.from(createLeague.execute(currentUserProvider.get(),
                 new CreateLeague.Command(request.name(), request.description(), request.visibility(),
-                        request.scoreEntry())));
+                        request.scoreEntry(), request.sharedMatches())));
     }
 
     @GetMapping("/mine")
@@ -100,11 +100,11 @@ public class LeagueController {
     }
 
     @PatchMapping("/{id}")
-    @Operation(summary = "Changes name, description, visibility or score entry (league administrator)")
+    @Operation(summary = "Changes name, description, visibility, score entry or shared matches (league administrator)")
     public LeagueResponse update(@PathVariable UUID id, @RequestBody UpdateLeagueRequest request) {
         return LeagueResponse.from(updateLeague.execute(currentUserProvider.get(), id,
                 new UpdateLeague.Command(request.name(), request.description(), request.visibility(),
-                        request.scoreEntry())));
+                        request.scoreEntry(), request.sharedMatches())));
     }
 
     @PostMapping("/{id}/archive")

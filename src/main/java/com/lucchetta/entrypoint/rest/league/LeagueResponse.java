@@ -9,6 +9,8 @@ import java.util.UUID;
 
 /**
  * @param scoreEntry         who records match scores in the league (D-029); null for non-members (D-020)
+ * @param sharedMatches      whether matches of other leagues whose four players are members count here
+ *                           too (D-031); null for non-members
  * @param memberCount        members right now; shown with {@code memberLimit} as "13/50"
  * @param myRole             the caller's role, null if not a member
  * @param canAdminister      whether the caller may administer the league (league administrator or
@@ -23,6 +25,7 @@ public record LeagueResponse(
         String description,
         LeagueVisibility visibility,
         ScoreEntry scoreEntry,
+        Boolean sharedMatches,
         int memberCount,
         int memberLimit,
         boolean archived,
@@ -32,8 +35,10 @@ public record LeagueResponse(
         boolean joinRequestPending) {
 
     public static LeagueResponse from(LeagueView view) {
+        boolean insider = view.member() || view.canAdminister();
         return new LeagueResponse(view.league().id(), view.league().name(), view.league().description(),
-                view.league().visibility(), view.member() || view.canAdminister() ? view.league().scoreEntry() : null,
+                view.league().visibility(), insider ? view.league().scoreEntry() : null,
+                insider ? view.league().sharedMatches() : null,
                 view.memberCount(), view.memberLimit(), view.league().archived(), view.myRole(), view.canAdminister(),
                 view.canEnterScores(), view.joinRequestPending());
     }

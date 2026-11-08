@@ -22,11 +22,19 @@ import java.util.Objects;
  */
 public class CreateLeague {
 
-    /** @param scoreEntry who records match scores (D-029); null means any member */
-    public record Command(String name, String description, LeagueVisibility visibility, ScoreEntry scoreEntry) {
+    /**
+     * @param scoreEntry    who records match scores (D-029); null means any member
+     * @param sharedMatches whether matches of other leagues count here too (D-031); null means yes
+     */
+    public record Command(String name, String description, LeagueVisibility visibility, ScoreEntry scoreEntry,
+                          Boolean sharedMatches) {
 
         public Command(String name, String description, LeagueVisibility visibility) {
-            this(name, description, visibility, null);
+            this(name, description, visibility, null, null);
+        }
+
+        public Command(String name, String description, LeagueVisibility visibility, ScoreEntry scoreEntry) {
+            this(name, description, visibility, scoreEntry, null);
         }
     }
 
@@ -52,7 +60,8 @@ public class CreateLeague {
         Player creator = leagueAccess.player(user);
         Instant now = clock.instant();
         League league = League.create(command.name(), command.description(), command.visibility(),
-                Objects.requireNonNullElse(command.scoreEntry(), ScoreEntry.MEMBERS), creator.id(), now);
+                Objects.requireNonNullElse(command.scoreEntry(), ScoreEntry.MEMBERS),
+                !Boolean.FALSE.equals(command.sharedMatches()), creator.id(), now);
 
         League created = transactionRunner.inTransaction(() -> {
             if (!user.admin()
