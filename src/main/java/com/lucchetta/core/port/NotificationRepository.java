@@ -3,6 +3,7 @@ package com.lucchetta.core.port;
 import com.lucchetta.core.domain.notification.Notification;
 
 import java.time.Instant;
+import java.util.Collection;
 import java.util.List;
 import java.util.UUID;
 
@@ -24,4 +25,12 @@ public interface NotificationRepository {
     boolean markRead(UUID notificationId, UUID recipientId, Instant readAt);
 
     void markAllRead(UUID recipientId, Instant readAt);
+
+    /** @return false when the notification does not exist or belongs to someone else */
+    boolean delete(UUID notificationId, UUID recipientId);
+
+    /** Deletes those of the given notifications that belong to the recipient; the others are ignored. */
+    void deleteAll(UUID recipientId, Collection<UUID> notificationIds);
+
+    void deleteAll(UUID recipientId);
 }

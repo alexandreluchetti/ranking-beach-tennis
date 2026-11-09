@@ -74,6 +74,21 @@ public class InMemoryNotifications implements NotificationRepository, DeviceToke
     }
 
     @Override
+    public boolean delete(UUID notificationId, UUID recipientId) {
+        return byDedupKey.values().removeIf(n -> n.id().equals(notificationId) && n.recipientId().equals(recipientId));
+    }
+
+    @Override
+    public void deleteAll(UUID recipientId, Collection<UUID> notificationIds) {
+        byDedupKey.values().removeIf(n -> n.recipientId().equals(recipientId) && notificationIds.contains(n.id()));
+    }
+
+    @Override
+    public void deleteAll(UUID recipientId) {
+        byDedupKey.values().removeIf(n -> n.recipientId().equals(recipientId));
+    }
+
+    @Override
     public void save(String token, UUID playerId, DevicePlatform platform, Instant now) {
         devices.put(token, new DeviceToken(token, playerId, platform));
     }
