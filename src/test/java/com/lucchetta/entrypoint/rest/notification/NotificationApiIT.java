@@ -133,6 +133,57 @@ class NotificationApiIT extends IntegrationTest {
         assertThat(jdbcTemplate.queryForObject("select count(*) from device_token", Integer.class)).isZero();
     }
 
+    @Test
+    void usersDeleteTheirOwnNotifications() throws Exception {
+        registerAsAna();
+        mockMvc.perform(post("/api/matches").with(token("uid-ana", "Ana", null)).contentType(MediaType.APPLICATION_JSON)
+                        .content(matchBody.replaceFirst("\"id\": \"[^\"]+\"", "\"id\": \"" + UUID.randomUUID() + "\"")
+                                .replace("6, \"teamBGames\": 4", "6, \"teamBGames\": 2")
+                                .replace("\"teamA\"", "\"confirmPossibleDuplicate\": true, \"teamA\"")))
+                .andExpect(status().isCreated());
+        String caioPage = mockMvc.perform(get("/api/notifications").with(token("uid-caio", "Caio", null)))
+                .andExpect(jsonPath("$.unreadCount").value(2))
+                .andReturn().getResponse().getContentAsString();
+        String first = JsonPath.read(caioPage, "$.items[0].id");
+        String second = JsonPath.read(caioPage, "$.items[1].id");
+
+        mockMvc.perform(delete("/api/notifications/" + first).with(token("uid-ana", "Ana", null)))
+                .andExpect(status().isNotFound())
+                .andExpect(jsonPath("$.code").value("NOTIFICATION_NOT_FOUND"));
+        mockMvc.perform(delete("/api/notifications/" + first).with(token("uid-caio", "Caio", null)))
+                .andExpect(status().isNoContent());
+        mockMvc.perform(get("/api/notifications").with(token("uid-caio", "Caio", null)))
+                .andExpect(jsonPath("$.unreadCount").value(1))
+                .andExpect(jsonPath("$.items.length()").value(1));
+
+        // Ids of someone else or unknown ones are ignored.
+        mockMvc.perform(post("/api/notifications/delete").with(token("uid-ana", "Ana", null))
+                        .contentType(MediaType.APPLICATION_JSON).content("{\"ids\": [\"" + second + "\"]}"))
+                .andExpect(status().isNoContent());
+        mockMvc.perform(post("/api/notifications/delete").with(token("uid-caio", "Caio", null))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"ids\": [\"" + second + "\", \"" + UUID.randomUUID() + "\"]}"))
+                .andExpect(status().isNoContent());
+        mockMvc.perform(get("/api/notifications").with(token("uid-caio", "Caio", null)))
+                .andExpect(jsonPath("$.unreadCount").value(0))
+                .andExpect(jsonPath("$.items.length()").value(0));
+        mockMvc.perform(post("/api/notifications/delete").with(token("uid-caio", "Caio", null))
+                        .contentType(MediaType.APPLICATION_JSON).content("{\"ids\": []}"))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.code").value("NOTIFICATION_IDS_INVALID"));
+        mockMvc.perform(post("/api/notifications/delete").with(token("uid-caio", "Caio", null))
+                        .contentType(MediaType.APPLICATION_JSON).content("{\"ids\": [\"abc\"]}"))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.code").value("INVALID_REQUEST"));
+
+        mockMvc.perform(delete("/api/notifications").with(token("uid-beto", "Beto", null)))
+                .andExpect(status().isNoContent());
+        mockMvc.perform(get("/api/notifications").with(token("uid-beto", "Beto", null)))
+                .andExpect(jsonPath("$.items.length()").value(0));
+        mockMvc.perform(get("/api/notifications").with(token("uid-dani", "Dani", null)))
+                .andExpect(jsonPath("$.items.length()").value(2));
+    }
+
     private String registerAsAna() throws Exception {
         return JsonPath.read(mockMvc.perform(post("/api/matches").with(token("uid-ana", "Ana", null))
                         .contentType(MediaType.APPLICATION_JSON).content(matchBody))

@@ -48,6 +48,9 @@ public class NotificationController {
                                            boolean hasNext) {
     }
 
+    public record DeleteNotificationsRequest(List<UUID> ids) {
+    }
+
     public record DeviceRequest(String token, DevicePlatform platform) {
     }
 
@@ -80,6 +83,27 @@ public class NotificationController {
     @Operation(summary = "Marks all of the caller's notifications as read")
     public void markAllRead() {
         inbox.markAllRead(currentUserProvider.get());
+    }
+
+    @DeleteMapping("/api/notifications/{id}")
+    @ResponseStatus(HttpStatus.NO_CONTENT)
+    @Operation(summary = "Deletes one of the caller's notifications for good")
+    public void delete(@PathVariable UUID id) {
+        inbox.delete(currentUserProvider.get(), id);
+    }
+
+    @PostMapping("/api/notifications/delete")
+    @ResponseStatus(HttpStatus.NO_CONTENT)
+    @Operation(summary = "Deletes up to 100 of the caller's notifications; ids of others or unknown ones are ignored")
+    public void deleteSome(@RequestBody DeleteNotificationsRequest request) {
+        inbox.delete(currentUserProvider.get(), request.ids());
+    }
+
+    @DeleteMapping("/api/notifications")
+    @ResponseStatus(HttpStatus.NO_CONTENT)
+    @Operation(summary = "Deletes all of the caller's notifications")
+    public void deleteAll() {
+        inbox.deleteAll(currentUserProvider.get());
     }
 
     @PutMapping("/api/me/devices")
