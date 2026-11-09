@@ -298,6 +298,18 @@ published; then they are removed.
 - Games of a daily tournament stage are never shared, and a league never receives matches into a
   daily tournament season.
 
+### D-032 — Deleting notifications
+- Users delete their own notifications: one, several (up to 100 per request) or all. Nobody
+  deletes someone else's, not even the system administrator.
+- Deletion is permanent: a notification is not an audit record (match history stays in the match
+  audit). The unread count follows the deletion; push already delivered to a device is not
+  affected.
+- Deleting one that does not exist or belongs to someone else answers "not found", without telling
+  which. Deleting several ignores the ids that do not exist or belong to someone else, so a resend
+  succeeds and nothing is revealed about them.
+- Deleting an invitation or join request notification does not answer it: invitations and
+  requests stay available in their own screens.
+
 ## Technical defaults (easy to change)
 
 - Display name: 2–40 characters, whitespace normalized. Initial value: name from the login

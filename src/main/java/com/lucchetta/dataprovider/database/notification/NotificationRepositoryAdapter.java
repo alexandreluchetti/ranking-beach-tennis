@@ -11,6 +11,7 @@ import java.time.Instant;
 import java.time.OffsetDateTime;
 import java.time.ZoneOffset;
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.List;
 import java.util.UUID;
 
@@ -114,6 +115,35 @@ public class NotificationRepositoryAdapter implements NotificationRepository {
         jdbcClient.sql("update notification set read_at = :readAt where recipient_id = :recipientId and read_at is null")
                 .param("recipientId", recipientId)
                 .param("readAt", utc(readAt))
+                .update();
+    }
+
+    @Override
+    @Transactional
+    public boolean delete(UUID notificationId, UUID recipientId) {
+        return jdbcClient.sql("delete from notification where id = :id and recipient_id = :recipientId")
+                .param("id", notificationId)
+                .param("recipientId", recipientId)
+                .update() == 1;
+    }
+
+    @Override
+    @Transactional
+    public void deleteAll(UUID recipientId, Collection<UUID> notificationIds) {
+        if (notificationIds.isEmpty()) {
+            return;
+        }
+        jdbcClient.sql("delete from notification where recipient_id = :recipientId and id in (:ids)")
+                .param("recipientId", recipientId)
+                .param("ids", notificationIds)
+                .update();
+    }
+
+    @Override
+    @Transactional
+    public void deleteAll(UUID recipientId) {
+        jdbcClient.sql("delete from notification where recipient_id = :recipientId")
+                .param("recipientId", recipientId)
                 .update();
     }
 

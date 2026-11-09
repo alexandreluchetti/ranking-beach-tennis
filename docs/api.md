@@ -18,6 +18,7 @@ in any league without being a member.
 | GET | `/api/me/invitations` | any user | Own pending league invitations. |
 | POST | `/api/me/invitations/{id}/accept` · `/reject` | invitee | Accepting joins the league. |
 | GET | `/api/notifications` · POST `/api/notifications/{id}/read` · `/read-all` | any user | In-app notifications. |
+| DELETE | `/api/notifications/{id}` · POST `/api/notifications/delete` · DELETE `/api/notifications` | any user (own only) | Deletes for good (D-032), 204. One: 404 `NOTIFICATION_NOT_FOUND` when missing or someone else's. Batch `{"ids"}`: 1–100 ids (else 400 `NOTIFICATION_IDS_INVALID`), unknown or others' ids ignored. All: always 204. |
 | PUT · DELETE | `/api/me/devices[/{token}]` | any user | Push devices. |
 
 ## Leagues

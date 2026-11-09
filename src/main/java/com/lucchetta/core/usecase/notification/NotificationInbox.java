@@ -11,6 +11,8 @@ import com.lucchetta.core.usecase.player.GetOrCreateCurrentPlayer;
 
 import java.time.Clock;
 import java.util.List;
+import java.util.Objects;
+import java.util.Set;
 import java.util.UUID;
 
 /**
@@ -20,6 +22,7 @@ import java.util.UUID;
 public class NotificationInbox {
 
     public static final int MAX_PAGE_SIZE = 100;
+    public static final int MAX_DELETE_BATCH = 100;
     static final int MAX_TOKEN_LENGTH = 512;
 
     public record Page(List<Notification> items, int unreadCount, int page, int size, boolean hasNext) {
@@ -58,6 +61,29 @@ public class NotificationInbox {
 
     public void markAllRead(AuthenticatedUser user) {
         notificationRepository.markAllRead(me(user), clock.instant());
+    }
+
+    /** Deletes the notification for good (D-032); push already delivered to a device is not affected. */
+    public void delete(AuthenticatedUser user, UUID notificationId) {
+        if (!notificationRepository.delete(notificationId, me(user))) {
+            throw new NotFoundException("NOTIFICATION_NOT_FOUND");
+        }
+    }
+
+    /**
+     * Deletes the caller's notifications among the given ids; ids that do not exist or belong to
+     * someone else are ignored, so a resend succeeds and nothing is revealed about them (D-032).
+     */
+    public void delete(AuthenticatedUser user, List<UUID> notificationIds) {
+        if (notificationIds == null || notificationIds.isEmpty() || notificationIds.size() > MAX_DELETE_BATCH
+                || notificationIds.stream().anyMatch(Objects::isNull)) {
+            throw new RuleViolationException("NOTIFICATION_IDS_INVALID");
+        }
+        notificationRepository.deleteAll(me(user), Set.copyOf(notificationIds));
+    }
+
+    public void deleteAll(AuthenticatedUser user) {
+        notificationRepository.deleteAll(me(user));
     }
 
     public void registerDevice(AuthenticatedUser user, String token, DevicePlatform platform) {

@@ -50,6 +50,7 @@ final class ErrorMessages {
             Map.entry("REASON_REQUIRED", "Informe a justificativa."),
             Map.entry("REASON_TOO_LONG", "A justificativa deve ter no máximo 500 caracteres."),
             Map.entry("NOTIFICATION_NOT_FOUND", "Notificação não encontrada."),
+            Map.entry("NOTIFICATION_IDS_INVALID", "Informe de 1 a 100 notificações para excluir."),
             Map.entry("LEAGUE_NOT_FOUND", "Liga não encontrada."),
             Map.entry("INVALID_LEAGUE_NAME", "O nome da liga deve ter entre 3 e 60 caracteres."),
             Map.entry("INVALID_LEAGUE_DESCRIPTION", "A descrição da liga deve ter no máximo 500 caracteres."),
