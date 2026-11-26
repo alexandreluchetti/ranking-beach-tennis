@@ -39,36 +39,76 @@ All configuration lives in `.env` on the server (copy `.env.example`). Never com
 | Server IP | `179.236.77.80` |
 | DNS | Hostinger: `A api → 179.236.77.80`, TTL 300 |
 | Web app origins (CORS) | `https://ranking-beach-tennis.web.app`, `https://ranking-beach-tennis.firebaseapp.com` |
-| Repository on the server | `/root/ranking-beach-tennis` (commands run as `root`) |
+| Repository on the server | `/home/deploy/ranking-beach-tennis` (commands run as `deploy`, see below) |
+
+## Security rules (mandatory)
+
+The server was taken over on 2026-11-24 through an SSH password login (see "Incident history").
+These rules are not optional:
+
+- SSH accepts **keys only**, for every user. Password and keyboard-interactive logins are off,
+  checked with `sshd -T` (Ubuntu's cloud-init drop-in turns passwords back on otherwise).
+- `deploy` has **no password** (`--disabled-password`) and no `sudo`; it runs Docker only. Being
+  in the `docker` group is equivalent to root, which is why its login must be key-only.
+- `root` logs in with a key only (`PermitRootLogin prohibit-password`); the hPanel browser
+  terminal keeps working because it uses a Hostinger-managed key.
+- `ufw` allows only 22, 80 and 443; `fail2ban` bans repeated SSH failures; `unattended-upgrades`
+  installs security updates.
+- The hPanel account has a strong password and two-factor authentication.
 
 ## Server setup (Hostinger)
 
 1. **VPS** (hPanel → VPS): KVM plan (KVM 1 is enough), Ubuntu 24.04 LTS, a strong root password
-   and your SSH public key (`ssh-keygen -t ed25519` on your computer). Shared hosting cannot run
-   Docker.
+   (kept only in your password manager; SSH never accepts it) and your SSH public key
+   (`ssh-keygen -t ed25519` on your computer). Shared hosting cannot run Docker.
 2. **Domain and DNS** (hPanel → Domains → the domain → DNS / Nameservers): the domain must be
    registered and active (finish the contact data and the ICANN e-mail verification). Add an
    `A` record `api` → VPS IP. Check before starting Caddy:
    `nslookup api.ranking-beach-tennis.tech 8.8.8.8` must return the VPS IP. Starting Caddy
    before DNS resolves makes certificate issuance fail, and Let's Encrypt rate-limits retries.
    CAA records, if any, must allow `letsencrypt.org`.
-3. **Base hardening** (as root, once):
+3. **SSH keys only** (as root, in the hPanel browser terminal or `ssh root@<ip>`). The `00-`
+   file wins over Ubuntu's `50-cloud-init.conf`, which enables passwords:
+
+   ```bash
+   cat > /etc/ssh/sshd_config.d/00-hardening.conf <<'EOF'
+   PasswordAuthentication no
+   KbdInteractiveAuthentication no
+   PermitRootLogin prohibit-password
+   EOF
+   systemctl restart ssh
+   sshd -T | grep -Ei '^(passwordauthentication|kbdinteractiveauthentication|permitrootlogin) '
+   ```
+
+   The last command must print `passwordauthentication no`, `kbdinteractiveauthentication no` and
+   `permitrootlogin without-password`. From your computer, a password login must now be refused
+   with `Permission denied (publickey)`:
+   `ssh -o PubkeyAuthentication=no -o PreferredAuthentications=password root@<ip>`.
+4. **Updates, firewall and fail2ban** (as root):
 
    ```bash
    apt update && apt upgrade -y
-   adduser deploy && usermod -aG sudo deploy
-   mkdir -p /home/deploy/.ssh && cp ~/.ssh/authorized_keys /home/deploy/.ssh/ && chown -R deploy:deploy /home/deploy/.ssh
-   ufw allow OpenSSH && ufw allow 80/tcp && ufw allow 443/tcp && ufw enable
+   apt install -y fail2ban unattended-upgrades
+   systemctl enable --now fail2ban
+   ufw allow OpenSSH && ufw allow 80/tcp && ufw allow 443/tcp && ufw --force enable
    ```
 
-   After confirming `ssh deploy@<ip>` works in a second session, set `PasswordAuthentication no`
-   and `PermitRootLogin no` in `/etc/ssh/sshd_config` and run `systemctl restart ssh`.
-   PostgreSQL is published on the server loopback only, so it stays unreachable from the
-   internet even though Docker bypasses `ufw` for published ports.
-4. **Docker** (skip with the Hostinger "Ubuntu with Docker" template):
-   `curl -fsSL https://get.docker.com | sudo sh && sudo usermod -aG docker deploy`, then log in
-   again.
-5. **Read-only deploy key** for cloning:
+   PostgreSQL and the API are published on the server loopback only, so they stay unreachable
+   from the internet even though Docker bypasses `ufw` for published ports.
+5. **Docker** (skip the install with the Hostinger "Ubuntu with Docker" template), then the
+   `deploy` user, without a password and with your key:
+
+   ```bash
+   curl -fsSL https://get.docker.com | sh
+   adduser --disabled-password --gecos "" deploy && usermod -aG docker deploy
+   install -d -m 700 -o deploy -g deploy /home/deploy/.ssh
+   install -m 600 -o deploy -g deploy /root/.ssh/authorized_keys /home/deploy/.ssh/authorized_keys
+   # keep only your own key there (drop the "#hostinger-managed-key" line):
+   nano /home/deploy/.ssh/authorized_keys
+   ```
+
+   Check from your computer: `ssh deploy@<ip>` works and `docker ps` runs there.
+6. **Read-only deploy key** for cloning (as `deploy`):
 
    ```bash
    ssh-keygen -t ed25519 -f ~/.ssh/github_deploy -N "" -C "vps-ranking"
@@ -80,8 +120,8 @@ All configuration lives in `.env` on the server (copy `.env.example`). Never com
 ## First deployment
 
 ```bash
-# on the server, as a non-root user in the docker group (repository cloned as above)
-cd ranking-beach-tennis
+# on the server, as deploy (repository cloned as above)
+cd ~/ranking-beach-tennis
 cp .env.example .env && chmod 600 .env   # then edit: POSTGRES_PASSWORD, DOMAIN, ADMIN_AUTH_SUBJECT
 docker compose --profile prod up -d --build
 docker compose --profile prod ps          # backend and postgres must be "healthy"
@@ -129,8 +169,11 @@ survive losing the server (rebuild, cancelled plan, disk failure). Copy them off
 regularly, from your computer:
 
 ```bash
-scp root@179.236.77.80:/root/ranking-beach-tennis/backups/*.dump .
+scp deploy@179.236.77.80:ranking-beach-tennis/backups/*.dump C:/Users/luche/ranking-backups/
 ```
+
+Keep the copies **outside the repository** (they hold personal data; `*.dump` is git-ignored
+anyway).
 
 Hostinger VPS snapshots (hPanel → VPS → Snapshots) are a second, whole-server copy; check whether
 the plan charges for them.
@@ -164,7 +207,7 @@ systemctl is-enabled docker
 After restarting, check the services (`backend` and `postgres` healthy) and the API:
 
 ```bash
-cd /root/ranking-beach-tennis && docker compose --profile prod ps
+cd ~/ranking-beach-tennis && docker compose --profile prod ps
 curl https://api.ranking-beach-tennis.tech/actuator/health
 ```
 
@@ -172,6 +215,54 @@ curl https://api.ranking-beach-tennis.tech/actuator/health
 in hPanel (formats the disk, dumps included), cancelling the plan, and `docker compose down -v`
 (`-v` deletes the database volume; `down` without it is safe). Copy the dumps off the server
 before any of these.
+
+## Rebuilding after a compromise
+
+Never clean a compromised server: attackers leave back doors (cron jobs, SSH keys). Rebuild it.
+
+1. **Save the data**: take a dump (`docker compose --profile prod exec db-backup pg_dump
+   --format=custom --file=/backups/incident.dump`), copy every dump to your computer (see
+   "Backups and restore"), then **stop the VPS** in hPanel.
+2. **Check the data** on your computer: restore the last dump from before the intrusion and the
+   newest one into a throwaway PostgreSQL container and compare every table. Use the newest one
+   only if nothing changed unexpectedly.
+3. **Rotate every secret** the server held, even if you are unsure it was there:
+   - hPanel password, and turn on two-factor authentication;
+   - a new `POSTGRES_PASSWORD` (write a new `.env`, never copy the old one);
+   - Firebase service account keys: Google Cloud Console → IAM & Admin → Service accounts →
+     `firebase-adminsdk-…` → Keys: delete every key; create a new one only if push is used;
+   - GitHub → repository → Settings → Deploy keys: delete the server's key (a new one is created
+     in step 6 of the server setup);
+   - your SSH key, if its private part was ever on the server.
+4. **Reinstall the OS** in hPanel (VPS → OS & Panel → Operating system, Ubuntu 24.04) with a new
+   root password and your SSH key. This formats the disk.
+5. Follow **Server setup** from step 3 and **First deployment** up to `cp .env.example .env`, then
+   restore the dump into the new, empty database before the API starts:
+
+   ```bash
+   # on your computer
+   scp C:/Users/luche/ranking-backups/incident.dump deploy@179.236.77.80:
+   # on the server, as deploy
+   cd ~/ranking-beach-tennis && mkdir -p backups && mv ~/incident.dump backups/
+   docker compose --profile prod up -d postgres db-backup
+   docker compose --profile prod exec -T db-backup pg_restore --no-owner --dbname=ranking /backups/incident.dump
+   docker compose --profile prod up -d --build
+   ```
+
+   Flyway finds the restored history and applies only newer migrations. Then run the
+   verification commands of "First deployment".
+6. Read the auth log for a few days (`grep -E "Accepted|Failed" /var/log/auth.log | tail`) and
+   `fail2ban-client status sshd`.
+
+## Incident history
+
+- **2026-11-24 — server taken over through SSH.** An attacker (`117.72.96.16`) logged in as
+  `deploy` with a guessed password: password logins were still enabled and `deploy` had a weak
+  password. As `deploy` (docker group, root-equivalent) it installed a cryptominer in
+  `/var/tmp` restarted by `deploy`'s crontab; Hostinger stopped the VPS on 2026-11-25. The
+  database was compared table by table with the dump of 2026-11-23 and was unchanged, but the
+  data and every secret on the server must be considered read. Response: rebuild with the
+  security rules above.
 
 ## Operations
 
